@@ -1,0 +1,15 @@
+1. take from SVG a data tree with:
+	-statement name
+	-outputs[# of inputs][number of branches from each input]
+	-the arrow should end within +-6px of the node to count.
+2. merge all starts to a single start.
+3. remove end statements
+4. transliterate to C
+	-lots of macro functions
+	-should give everything its own variable of names v1, v2, v3, etc.
+	-By default, things should go in main.
+5. If a branch is encountered, it should evaluate both sides in whichever order.
+6. If a merge is encountered, it should make everything after a function and call that.
+7. If code high up is needed down low, it should be passed through functions.
+8. variable reuse
+9. comment translation
