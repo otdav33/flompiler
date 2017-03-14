@@ -1,0 +1,171 @@
+<svg width="400" height="600" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<title>Flang</title>
+<defs>
+<g id="#node"/>
+<marker id="#arrowhead" viewBox="0 0 2 2" refX="1" refY="1" markerWidth="2" markerHeight="2" orient="auto">
+<circle cx="1" cy="1" r="1"/>
+</marker>
+<g id="#11" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="-32" xlink:href="##node" class="i1"/>
+<use x="0" y="32" xlink:href="##node" class="o1"/>
+<circle cx="0" cy="0" r="32" fill="white"/>
+</g>
+<g id="#12" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="-16" xlink:href="##node" class="i1"/>
+<use x="-14" y="8" xlink:href="##node" class="o1"/>
+<use x="14" y="8" xlink:href="##node" class="o2"/>
+<polygon points="0 32 -28 -16 28 -16" fill="white"/>
+</g>
+<g id="#21" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="-14" y="-8" xlink:href="##node" class="i1"/>
+<use x="14" y="-8" xlink:href="##node" class="i2"/>
+<use x="0" y="16" xlink:href="##node" class="o1"/>
+<polygon points="0 -32 -28 16 28 16" fill="white"/>
+</g>
+<g id="#22" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="-16" y="-16" xlink:href="##node" class="i1"/>
+<use x="16" y="-16" xlink:href="##node" class="i2"/>
+<use x="-16" y="16" xlink:href="##node" class="o1"/>
+<use x="16" y="16" xlink:href="##node" class="o2"/>
+<polygon points="-32 0 0 -32 32 0 0 32" fill="white"/>
+</g>
+<g id="#23" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="-16" y="-16" xlink:href="##node" class="i1"/>
+<use x="16" y="-16" xlink:href="##node" class="i2"/>
+<use x="-24" y="14" xlink:href="##node" class="o1"/>
+<use x="0" y="28" xlink:href="##node" class="o2"/>
+<use x="24" y="14" xlink:href="##node" class="o3"/>
+<polygon points="-32 0 -16 28 16 28 32 0 0 -32" fill="white"/>
+</g>
+<g id="#32" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="-24" y="-14" xlink:href="##node" class="i1"/>
+<use x="0" y="-28" xlink:href="##node" class="i2"/>
+<use x="24" y="-14" xlink:href="##node" class="i3"/>
+<use x="-16" y="16" xlink:href="##node" class="o1"/>
+<use x="16" y="16" xlink:href="##node" class="o2"/>
+<polygon points="-32 0 -16 -28 16 -28 32 0 0 32" fill="white"/>
+</g>
+<g id="#33" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="-24" y="-14" xlink:href="##node" class="i1"/>
+<use x="0" y="-28" xlink:href="##node" class="i2"/>
+<use x="24" y="-14" xlink:href="##node" class="i3"/>
+<use x="-24" y="14" xlink:href="##node" class="o1"/>
+<use x="0" y="28" xlink:href="##node" class="o2"/>
+<use x="24" y="14" xlink:href="##node" class="o3"/>
+<polygon points="-32 0 -16 -28 16 -28 32 0 16 28 -16 28" fill="white"/>
+</g>
+<g id="Start" stroke-linecap="butt" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="32" xlink:href="##node" class="o1"/>
+<circle cx="0" cy="-16" r="16"/>
+<path d="M -16 -16 C -16 0 0 16 0 32"/>
+</g>
+<g id="End" stroke-linecap="butt" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="-32" xlink:href="##node" class="i1"/>
+<circle cx="0" cy="16" r="16"/>
+<path d="M 0 -32 C 0 -16 16 0 16 16"/>
+</g>
+<g id="Print" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##11"/>
+<rect x="-16" y="-16" width="32" height="28" rx="2" ry="2" stroke-width="2"/>
+<rect x="-8" y="12" width="16" height="4" fill="black" stroke="transparent"/>
+<rect x="-10" y="15" width="20" height="2" rx="2" ry="2" stroke-width="2"/>
+</g>
+<g id="Constant" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="-32" xlink:href="##node" class="i1"/>
+<use x="0" y="32" xlink:href="##node" class="o1"/>
+<rect x="-32" y="-32" width="64" height="64" class="c"/>
+</g>
+<g id="Keyboard" stroke-linecap="round" stroke-width="2" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##11"/>
+<rect x="-16" y="-3" width="32" height="15" rx="2" ry="2"/>
+<path d="M -12 -3 C -12 -15 0 -25 0 -32"/>
+</g>
+<clipPath id="uptriangle">
+<polygon points="0 -32 -28 16 28 16"/>
+</clipPath>
+<g id="Left" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##21"/>
+<path d="M -14 -8 C -22 -19 0 4 0 16" clip-path="url(#uptriangle)"/>
+</g>
+<g id="Equal" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##32"/>
+<line x1="-10" x2="10" y1="-10" y2="-10"/>
+<line x1="-10" x2="10" y1="2" y2="2"/>
+</g>
+<g id="Greater" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##32"/>
+<line x1="-10" x2="10" y1="-14" y2="-4"/>
+<line x1="-10" x2="10" y1="6" y2="-4"/>
+</g>
+<g id="Sum" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##21"/>
+<line x1="-10" x2="10" y1="0" y2="0"/>
+<line x1="0" x2="0" y1="-10" y2="10"/>
+</g>
+<g id="Difference" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##21"/>
+<line x1="-10" x2="10" y1="0" y2="0"/>
+</g>
+<g id="Product" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##21"/>
+<line x1="-8" x2="8" y1="-8" y2="8"/>
+<line x1="8" x2="-8" y1="-8" y2="8"/>
+</g>
+<g id="Quotient" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##21"/>
+<line x1="-10" x2="10" y1="0" y2="0"/>
+<circle cx="0" cy="-7" r="3" stroke-width="3"/>
+<circle cx="0" cy="7" r="3" stroke-width="3"/>
+</g>
+<g id="Push" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##21"/>
+<path d="M -14 -8 C -22 -19 0 4 0 16" stroke-width="6" clip-path="url(#uptriangle)"/>
+<path d="M 14 -8 C 22 -19 0 4 0 16" stroke-width="4" clip-path="url(#uptriangle)"/>
+</g>
+<clipPath id="downtriangle">
+<polygon points="0 32 -28 -16 28 -16"/>
+</clipPath>
+<g id="Pop" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##12"/>
+<path d="M -14 8 C -22 19 0 -4 0 -16" stroke-width="6" clip-path="url(#downtriangle)"/>
+<path d="M 14 8 C 22 19 0 -4 0 -16" stroke-width="4" clip-path="url(#downtriangle)"/>
+</g>
+<g id="RotateLeft" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##11"/>
+<path d="M -19 0 A 19 19 0 1 1 0 19"/>
+<line x1="-19" x2="-24" y1="0" y2="-5"/>
+<line x1="-19" x2="-14" y1="0" y2="-5"/>
+</g>
+<g id="RotateRight" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##11"/>
+<path d="M 0 19 A 19 19 0 1 1 19 0"/>
+<line x1="19" x2="24" y1="0" y2="-5"/>
+<line x1="19" x2="14" y1="0" y2="-5"/>
+</g>
+<g id="Length" stroke-linecap="round" stroke-width="4" stroke="black" fill="transparent">
+<use x="0" y="0" xlink:href="##11"/>
+<line x1="-16" x2="16" y1="-8" y2="-8"/>
+<line x1="-16" x2="16" y1="8" y2="8"/>
+<line x1="-8" x2="-8" y1="-16" y2="16"/>
+<line x1="8" x2="8" y1="-16" y2="16"/>
+</g>
+</defs>
+<path d="M 50 82 C 50 98 28 131 36 142" stroke-width="4" stroke="navy" fill="transparent" stroke-linecap="butt" marker-end="url(##arrowhead)"/>
+<use x="50"  y="50" xlink:href="#Start"/>
+<use x="150" y="50" xlink:href="#Print"/>
+<use x="250" y="50" xlink:href="#Constant"/>
+<use x="350" y="50" xlink:href="#Keyboard"/>
+<use x="50"  y="150" xlink:href="#Left"/>
+<use x="150" y="150" xlink:href="#Equal"/>
+<use x="250" y="150" xlink:href="#Greater"/>
+<use x="350" y="150" xlink:href="#Sum"/>
+<use x="50"  y="250" xlink:href="#Difference"/>
+<use x="150" y="250" xlink:href="#Product"/>
+<use x="250" y="250" xlink:href="#Quotient"/>
+<use x="350" y="250" xlink:href="#Push"/>
+<use x="50"  y="350" xlink:href="#Pop"/>
+<use x="150" y="350" xlink:href="#RotateLeft"/>
+<use x="250" y="350" xlink:href="#RotateRight"/>
+<use x="350" y="350" xlink:href="#Length"/>
+<use x="50" y="450" xlink:href="#End"/>
+</svg>
