@@ -5,6 +5,7 @@
 #define MAXCHAR 1000000
 #define NUMOUTPUTS 5 //real number is NUMOUTPUTS-1
 #define LENOUTPUTS 9 //real number is LENOUTPUTS-1
+#define GATELEN 48
 
 struct point { //coordinate
 	int x, y;
@@ -20,9 +21,9 @@ struct func { //used function
 	struct func *o[NUMOUTPUTS][LENOUTPUTS]; //outputs, null terminated
 };
 
-int Depth, DefsDepth; //current XML tree depth, depth of the defs tag
-char Defs; //are we in a defs tag?
-struct gate Gatelist[48]; //list of all gates
+int Depth, Gatelistnum; //current XML tree depth, current Gatelist id
+char Defs, Gate; //How far is the current defs tag? gate? (0 if not inside)
+struct gate Gatelist[GATELEN]; //list of all gates
 
 const XML_Char *val4key(const XML_Char **attr, const XML_Char *key) {
 	int i;
@@ -33,17 +34,35 @@ const XML_Char *val4key(const XML_Char **attr, const XML_Char *key) {
 }
 
 void start(void *data, const XML_Char *name, const XML_Char **attr) {
-	if (!Defs && strncmp(name, "defs", 4) == 0) { //if tag name is "defs"
-		Defs = 1; //make it known that we are in a defs tag.
-		DefsDepth = Depth;
+	if (!Defs && !strncmp(name, "defs", 4)) { //if tag name is "defs", and we aren't in defs
+		Defs = Depth; //make it known that we are in a defs tag.
 	}
-	if (!Defs && strcmp(name, "g") == 0) { //if tag name is "g"
+	else if (!Gate && !strcmp(name, "g")) { //if tag name is "g", and we are in defs
 		const XML_Char *id = val4key(attr, "id");
-		if (id) {
-
-
-
-
+		if (id && strcmp(id, "#node")) { //if there is an id and it's not "#node"
+			Gate = Depth;
+			Gatelist[Gatelistnum].name = id;
+		}
+	} else if (!strcmp(name, "use")) {
+		const XML_Char *href = val4key(attr, "xlink:href"); //TODO: add implementation for #nn and ##node
+		const XML_Char *x = val4key(attr, "x");
+		const XML_Char *y = val4key(attr, "y");
+		if (!strcmp(href, "##node")) {
+			const XML_Char *class = val4key(attr, "class");
+			//Set the node in question to the value at hand
+			if (class[0] == 'i')
+				Gatelist[Gatelistnum].i[atoi(class[1])-1] = {atof(x), atof(y)};
+			if (class[0] == 'o')
+				Gatelist[Gatelistnum].o[atoi(class[1])-1] = {atof(x), atof(y)};
+		} else { //TODO: fix the following hack.
+			const XML_Char gname = href + 1; //SVG referenced gate name
+			int i;
+			for (i = 0; i < GATELEN && Gatelist[i].name != gname; i++); //advances to the referred gate
+			Gatelist[Gatelistnum].i = Gatelist[i].i;
+			Gatelist[Gatelistnum].o = Gatelist[i].o;
+		}//End broken hack
+	}
+	//TODO: other stuff
 	int i;
 	printf("elem");
 	for (i = 0; i < Depth; i++)
@@ -70,8 +89,12 @@ void text(void *data, const XML_Char *s, int len) {
 
 void end(void *data, const XML_Char *name) {
 	Depth--;
-	if (Defs && DefsDepth == Depth)
+	if (Defs == Depth)
 		Defs = 0; //If we leave a defs tag, make it known.
+	if (Gate == Depth) {
+		Gate = 0; //If we leave a gate tag, make it known.
+		Gatelistnum ++;
+	}
 }
 
 int main(int argc, char **argv) {
