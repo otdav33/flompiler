@@ -41,32 +41,23 @@ void ptrarrncpy(struct point *a, struct point *b, int cap) { //like strncpy, but
 }
 void gatecpy(struct gate *a, struct gate *b) { //copies all but name from gate b to a
 	a->numinputs = b->numinputs;
-	(*a).numoutputs = b->numoutputs;
+	a->numoutputs = b->numoutputs;
 	ptrarrncpy(a->i, b->i, b->numinputs);
 	ptrarrncpy(a->o, b->o, b->numoutputs);
-}
-
-void printelem(const XML_Char *name, const XML_Char **attr) { //prints tag info
-	int i;
-	printf("elem");
-	for (i = 0; i < Depth; i++)
-		printf("  ");
-	printf("%s", name);
-	for (i = 0; attr[i]; i += 2)
-		printf(" %s='%s'", attr[i], attr[i + 1]);
-	printf("\n");
 }
 
 void start(void *data, const XML_Char *name, const XML_Char **attr) {
 	if (!Defs && !strncmp(name, "defs", 4)) { //if tag name is "defs", and we aren't in defs
 		Defs = Depth; //make it known that we are in a defs tag.
-	} else if (Defs && !Gate && !strcmp(name, "g")) { //if tag name is "g", and we are in defs
+	}
+	else if (!Gate && !strcmp(name, "g")) { //if tag name is "g", and we are in defs
 		const XML_Char *id = val4key(attr, "id");
+		printf("q\n");
 		if (id && strcmp(id, "#node")) { //if there is an id and it's not "#node"
 			Gate = Depth;
 			strncpy(Gatelist[Gatelistnum].name, id, FUNCNAMELEN);
 		}
-	} else if (Defs && !strcmp(name, "use")) {
+	} else if (!strcmp(name, "use")) {
 		const XML_Char *href = val4key(attr, "xlink:href"); //TODO: add implementation for #nn and ##node
 		const XML_Char *x = val4key(attr, "x");
 		const XML_Char *y = val4key(attr, "y");
@@ -84,17 +75,26 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 			}
 		} else { //TODO: fix the following hack.
 			const XML_Char *gname = href + 1; //SVG referenced gate name
-			printf("gname is %s.\n", gname);
+			//printf("gname is %s.\n", gname);
 			int i;
 			for (i = 0; i < GATELEN && Gatelist[i].name != gname; i++); //advances to the referred gate
 			gatecpy(Gatelist + Gatelistnum, Gatelist + i); //copies Gatelist[Gatelistnum] <-- Gatelist[i]
 		}//End broken hack
 	}
-	//printelem(name, attr); //useful for debugging
+	/*
+	int i;
+	printf("elem");
+	for (i = 0; i < Depth; i++)
+		printf("  ");
+	printf("%s", name);
+	for (i = 0; attr[i]; i += 2)
+		printf(" %s='%s'", attr[i], attr[i + 1]);
+	printf("\n");
+	*/
 	Depth++;
 }
 
-void text(void *data, const XML_Char *s, int len) {//prints text content of an XML element
+void text(void *data, const XML_Char *s, int len) {
 	if (len < 2)
 		return;
 	int i;
@@ -109,6 +109,7 @@ void text(void *data, const XML_Char *s, int len) {//prints text content of an X
 
 void end(void *data, const XML_Char *name) {
 	Depth--;
+	printf("end depth %i\n", Depth);
 	if (Defs == Depth)
 		Defs = 0; //If we leave a defs tag, make it known.
 	if (Gate == Depth) {
@@ -124,7 +125,7 @@ int main(int argc, char **argv) {
 	}
 	XML_Parser parser = XML_ParserCreate(0);
 	XML_SetElementHandler(parser, &start, &end);
-	//XML_SetCharacterDataHandler(parser, &text); //useful for debugging
+	XML_SetCharacterDataHandler(parser, &text);
 	FILE *file = fopen(argv[1], "r");
 	if (file == 0) {
 		printf("file invalid");
