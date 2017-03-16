@@ -34,7 +34,7 @@ struct func { //used function after connection, or inside statement
 };
 
 struct statement { //used function before connection
-	struct point *p;
+	struct point p;
 	struct gate *g;
 	struct func *f;
 };
@@ -147,19 +147,21 @@ void addarrow(const XML_Char *d) {
 	Arrownum++; //move on to the next arrow
 }
 
-void addstatement(const XML_Char *attr) {
+void addstatement(const XML_Char **attr) {
 	//shove as much as currently possible into Stmtlist
-	Stmtlist[Stmtnum].p->x = val4key(attr, "x");
-	*(Stmtlist[Stmtnum].p).y = val4key(attr, "y");
+	Stmtlist[Stmtnum].p.x = atof(val4key(attr, "x"));
+	Stmtlist[Stmtnum].p.y = atof(val4key(attr, "y"));
 	const XML_Char *name = val4key(attr, "xlink:href") + 1;
-	strcpy(Stmtlist[Stmtnum].f.name, name);
+	Stmtlist[Stmtnum].f = malloc(sizeof(struct func));
+	printf("addstatement, \"%s\", '%s'\n", name, Stmtlist[Stmtnum].f->name);
+	strcpy(Stmtlist[Stmtnum].f->name, name);
 	int i;
 	for (i = 0; strcmp(Gatelist[i].name, name) && i < GATELEN; i++);
 	if (i == GATELEN) {
 		printf("%s used before definition", name);
 		exit(1);
 	}
-	Stmtlist[Stmtnum].g = Gatelist[i];
+	Stmtlist[Stmtnum].g = &Gatelist[i];
 	Stmtnum++;
 }
 
@@ -167,12 +169,14 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 	if (!Defs && !strcmp(name, "defs")) { //if tag name is "defs", and we aren't in defs
 		Defs = Depth; //make it known that we are in a defs tag.
 	} else if (Defs && !Gate && !strcmp(name, "g")) { //if tag name is "g", and we are in defs
+		printf("g");
 		const XML_Char *id = val4key(attr, "id");
 		if (id && strcmp(id, "#node")) { //if there is an id and it's not "#node"
 			Gate = Depth;
 			strncpy(Gatelist[Gatenum].name, id, FUNCNAMELEN);
 		}
 	} else if (Defs && !strcmp(name, "use")) {
+		printf("use\n");
 		const XML_Char *href = val4key(attr, "xlink:href"); //TODO: add implementation for #nn and ##node
 		const XML_Char *x = val4key(attr, "x");
 		const XML_Char *y = val4key(attr, "y");
@@ -196,10 +200,12 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 		}//End broken hack
 	} else if (!Defs && !strcmp(name, "path")) {
 		addarrow(val4key(attr, "d"));
-	} else if (!Defs && !strcmp(name, "use")) {
+		
+	}
+	if (!Defs && !strcmp(name, "use")) {
 		addstatement(attr);
 	}
-	//printelem(name, attr); //useful for debugging
+	printelem(name, attr); //useful for debugging
 	Depth++;
 }
 
@@ -249,28 +255,22 @@ struct connections connectionsappend(struct connections a, struct connections b)
 	for (j = 0; j < b.n; j++)
 		n.c[i++] = b.c[j];
 	n.n = a.n + b.n;
+	return n;
 }
 
 struct connections connected(struct point p) { //gives the statements directly and indirectly connected to the point
-	int i; //statement index
-	struct connections c = getconnections(p); //getconnections of children first
+	int i, k; //statement, output index
+	struct connections c; //getconnections of children first
+	for (i = 0; i < Arrownum; i++)
+		if (near(p, Arrowlist[i].a, 6))
+			c = connectionsappend(c, connected(Arrowlist[i].b));
 	for (i = 0; i < Stmtnum; i++) //iterate through statements
-		if (near(p, *(Stmtlist[j].p), 72))
-			for (k = 0; k < Stmtlist[j].g->numinputs; k++) {
-				if (near(Arrowlist[i].b, pointadd(Stmtlist[j].g->i[k], Stmtlist[j].p), 6)) {
-					c[l].o = Stmtlist.f; //set the connection to the refferred function.
-					c[l++].n = k;
+		if (near(p, Stmtlist[i].p, 72))
+			for (k = 0; k < Stmtlist[i].g->numinputs; k++)
+				if (near(p, pointadd(Stmtlist[k].g->i[k], Stmtlist[k].p), 6)) {
+					c.c[c.n].o = Stmtlist[k].f; //set the connection to the refferred function.
+					c.c[c.n++].n = k;
 				}
-			}
-	return c;
-}
-
-struct connections getconnections(struct point p) {
-	struct connections c;
-	for (c.n = 0; c.n < Arrownum; c.n++)
-		if (near(p, Arrowlist[c.n].a, 6))
-			c = connectionsappend(c[c.n], connected(Arrowlist[c.n].b));
-	c.n++; //c.n (length) is one greater than the last element's index.
 	return c;
 }
 
@@ -280,7 +280,9 @@ void makeFunclist() { //Turn Gatelist, Stmtlist and Arrowlist into Funclist
 		struct statement stmt = Stmtlist[i];
 		Funclist[i] = *(stmt.f);
 		for (j = 0; j < stmt.g->numoutputs; j++) { //iterate through outputs
-			Funclist[i].c[j] = getconnections(pointadd(stmt.p, stmt.g->o[j]));
+			struct connections cons = connected(pointadd(stmt.p, stmt.g->o[j]));
+			for (cons.n--; cons.n >= 0; cons.n--)
+				Funclist[i].c[j][cons.n] = cons.c[cons.n];
 		}
 	}
 }
