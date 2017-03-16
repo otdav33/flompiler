@@ -246,13 +246,7 @@ struct connection *connections(struct point p) {
 					struct gate g = *(Stmtlist[j].g);
 					for (k = 0; k < g.numinputs; k++) {
 						if (near(Arrowlist[i].b, g.i[k], 6)) {
-							c[l].o = Funclist[j];
-							c[l++].n = k;
-						}
-					}
-				}
-	}
-}
+
 
 void makeFunclist() { //Turn Gatelist, Stmtlist and Arrowlist into Funclist
 	int i, j; //function index, output index
@@ -262,10 +256,6 @@ void makeFunclist() { //Turn Gatelist, Stmtlist and Arrowlist into Funclist
 		for (j = 0; j < stmt.g->numoutputs; j++) { //iterate through outputs
 			//nest functions
 			Funclist[i].c[j] = connections(pointadd(stmt.p, stmt.g->o[j]));
-		}
-		//TODO: Finish
-	}
-}
 
 int main(int argc, char **argv) {
 	if (argc != 2) {
