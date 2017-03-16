@@ -21,7 +21,12 @@ struct gate { //implemented function
 struct connection {
 	struct func *o; //output
 	int n; //input # for the above func
-}
+};
+
+struct connections {
+	struct connection c[LENOUTPUTS]; //connections
+	int n; //number of connections
+};
 
 struct func { //used function after connection, or inside statement
 	char name[FUNCNAMELEN]; //builtin name
@@ -236,22 +241,37 @@ int near(struct point a, struct point b, double dist) { //Decides if the points 
 	return 1;
 }
 
-struct connection *connections(struct point p) {
-	struct connection c[LENOUTPUTS];
-	int i, j, k, l; //iterators of arrows, stmts, inputs and connections
-	for (i = 0; i < Arrownum; i++) {
-		if (near(p, Arrowlist[i].a, 6))
-			for (j = 0; j < Stmtnum; j++)
-				if (near(Arrowlist[i].b, *(Stmtlist[j].p), 72)) {
-					struct gate g = *(Stmtlist[j].g);
-					for (k = 0; k < g.numinputs; k++) {
-						if (near(Arrowlist[i].b, g.i[k], 6)) {
-							c[l].o = Funclist[j];
-							c[l++].n = k;
-						}
-					}
+struct connections connectionsappend(struct connections a, struct connections b) { //combine two connectionses
+	struct connections n;
+	int i, j;
+	for (i = 0; i < a.n; i++)
+		n.c[i] = a.c[i];
+	for (j = 0; j < b.n; j++)
+		n.c[i++] = b.c[j];
+	n.n = a.n + b.n;
+}
+
+struct connections connected(struct point p) { //gives the statements directly and indirectly connected to the point
+	int i; //statement index
+	struct connections c = getconnections(p); //getconnections of children first
+	for (i = 0; i < Stmtnum; i++) //iterate through statements
+		if (near(p, *(Stmtlist[j].p), 72))
+			for (k = 0; k < Stmtlist[j].g->numinputs; k++) {
+				if (near(Arrowlist[i].b, pointadd(Stmtlist[j].g->i[k], Stmtlist[j].p), 6)) {
+					c[l].o = Stmtlist.f; //set the connection to the refferred function.
+					c[l++].n = k;
 				}
-	}
+			}
+	return c;
+}
+
+struct connections getconnections(struct point p) {
+	struct connections c;
+	for (c.n = 0; c.n < Arrownum; c.n++)
+		if (near(p, Arrowlist[c.n].a, 6))
+			c = connectionsappend(c[c.n], connected(Arrowlist[c.n].b));
+	c.n++; //c.n (length) is one greater than the last element's index.
+	return c;
 }
 
 void makeFunclist() { //Turn Gatelist, Stmtlist and Arrowlist into Funclist
@@ -260,10 +280,8 @@ void makeFunclist() { //Turn Gatelist, Stmtlist and Arrowlist into Funclist
 		struct statement stmt = Stmtlist[i];
 		Funclist[i] = *(stmt.f);
 		for (j = 0; j < stmt.g->numoutputs; j++) { //iterate through outputs
-			//nest functions
-			Funclist[i].c[j] = connections(pointadd(stmt.p, stmt.g->o[j]));
+			Funclist[i].c[j] = getconnections(pointadd(stmt.p, stmt.g->o[j]));
 		}
-		//TODO: Finish
 	}
 }
 
