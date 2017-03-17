@@ -4,18 +4,16 @@
 
 #define MAXCHAR 1000000
 
-int Depth;
-
 void start(void *data, const XML_Char *name, const XML_Char **attr) {
 	int i;
 	printf("elem");
-	for (i = 0; i < Depth; i++)
+	for (i = 0; i < *(int *)data; i++)
 		printf("  ");
 	printf("%s", name);
 	for (i = 0; attr[i]; i += 2)
 		printf(" %s='%s'", attr[i], attr[i + 1]);
 	printf("\n");
-	Depth++;
+	(*(int *)data)++;
 }
 
 void text(void *data, const XML_Char *s, int len) {
@@ -23,7 +21,7 @@ void text(void *data, const XML_Char *s, int len) {
 		return;
 	int i;
 	printf("text");
-	for (i = 0; i < Depth; i++)
+	for (i = 0; i < *(int *)data; i++)
 		printf("  ");
 	char temp[len + 1];
 	strncpy(temp, s, len);
@@ -32,7 +30,7 @@ void text(void *data, const XML_Char *s, int len) {
 }
 
 void end(void *data, const XML_Char *name) {
-	Depth--;
+	(*(int *)data)--;
 }
 
 int main(int argc, char **argv) {
@@ -49,6 +47,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	XML_Char str[MAXCHAR];
+	int Depth;
+	XML_SetUserData(parser, &Depth);
 	size_t len = fread(str, sizeof(XML_Char), MAXCHAR, file);
 	if (!XML_Parse(parser, str, len, 1)) {
 		printf("expat error '%s'\n", XML_ErrorString(XML_GetErrorCode(parser)));
