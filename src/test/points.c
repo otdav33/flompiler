@@ -75,7 +75,6 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 				const XML_Char *name = href + 1; //SVG referenced function
 				int i, j;
 				for (i = 0; i < FUNCTYPES && strcmp(d->DFL[i].name, name); i++); //advances to the referred gate
-				printf("i is %i; name is %s\n", i, d->DFL[i].name);
 				//copy points
 				d->DFL[d->DFC].numi = d->DFL[i].numi;
 				for (j = 0; j < d->DFL[i].numi; j++)
