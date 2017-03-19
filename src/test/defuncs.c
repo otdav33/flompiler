@@ -14,20 +14,20 @@ struct point { //coordinate
 	double x, y;
 };
 
-struct defunc { //implemented function or used function with points (defined function)
+struct definedfunc { //implemented function
 	char name[FUNCNAMELEN], numi, numo; //builtin name, length of below arrays
 	struct point i[NUMOUTPUTS], o[NUMOUTPUTS]; //coordinates of inputs and outputs, null terminated
 };
 
-struct tfunc { //used function with relation to other functions instead of points (tree function)
+struct treefunc { //used function
 	char name[FUNCNAMELEN], numi, numo; //builtin name
-	struct tfunc *o[NUMOUTPUTS][LENOUTPUTS]; //outputs, null terminated [Output #][Connection #]
+	struct func *o[NUMOUTPUTS][LENOUTPUTS]; //outputs, null terminated [Output #][Connection #]
 };
 
 struct data {
-	struct defunc DFL[FUNCTYPES], UFL[FUNCTYPES]; //list of all functions available, then used
-	struct point APL[2 * MAXFUNCS * LENOUTPUTS]; //organized as tail, tip, tail, tip, etc. Each arrow has 2 points.
-	int DFC, UFC, APC; //length of DFL, UFL, APL
+	struct definedfunc DFL[FUNCTYPES]; //list of all gates
+	struct point APL[MAXFUNCS * LENOUTPUTS];
+	int DFC, APC; //length of DFL, APL
 	int Depth, Defs, Group; //current, defs tag, and g tag XML tree depth
 };
 
@@ -37,22 +37,6 @@ const XML_Char *val4key(const XML_Char **attr, const XML_Char *key) { //Gives th
 		if (!strcmp(attr[i], key))
 			return attr[i + 1];
 	return 0;
-}
-
-struct point pointadd(struct point a, struct point b) {
-	struct point p = {a.x + b.x, a.y + b.y};
-	return p;
-}
-
-void usefunc(struct defunc *b, struct point p, struct defunc *a) { //copies a into b with offset p
-	strncpy(b->name, a->name, FUNCNAMELEN);
-	b->numi = a->numi;
-	b->numo = a->numo;
-	int i;
-	for (i = 0; i < a->numi; i++)
-		b->i[i] = pointadd(a->i[i], p);
-	for (i = 0; i < a->numo; i++)
-		b->o[i] = pointadd(a->o[i], p);
 }
 
 //will run on the open of each XML tag. "Name" is the tag name (eg "g", "defs"). "attr" is the attributes, with evens keys and odds values.
@@ -92,7 +76,7 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 				//Instead of dealing with change in position or scaling, the following code copies exactly the nodes of the used item.
 				const XML_Char *name = href + 1; //SVG referenced function
 				int i, j;
-				for (i = 0; i < FUNCTYPES && strcmp(d->DFL[i].name, name); i++); //advances to the referred function
+				for (i = 0; i < FUNCTYPES && strcmp(d->DFL[i].name, name); i++); //advances to the referred gate
 				//copy points
 				d->DFL[d->DFC].numi = d->DFL[i].numi;
 				for (j = 0; j < d->DFL[i].numi; j++)
@@ -103,24 +87,11 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 			}//End broken hack
 		}
 	} else {
-		if (!strcmp(name, "defs")) { //if tag name is "defs", and we aren't in defs
+		if (!strncmp(name, "defs", 4)) { //if tag name is "defs", and we aren't in defs
 			d->Defs = d->Depth; //make it known that we are in a defs tag.
 		}
-		if (!strcmp(name, "use")) {
-			const XML_Char *name = val4key(attr, "xlink:href") + 1;
-			const XML_Char *x = val4key(attr, "x");
-			const XML_Char *y = val4key(attr, "y");
-			int i;
-			for (i = 0; i < FUNCTYPES && strcmp(d->DFL[i].name, name); i++); //advances to the referred function
-			if (i == FUNCTYPES) {
-				printf("Could not find function \"%s\".\n", name);
-				exit(1);
-			}
-			struct point offset = {atof(x), atof(y)};
-			usefunc(d->UFL + d->UFC, offset, d->DFL + i);
-			d->UFC++;
-		}
 	}
+	//printelem(name, attr); //useful for debugging
 	d->Depth++; //we are descending, after all.
 }
 
@@ -132,19 +103,6 @@ void end(void *data, const XML_Char *name) {
 	if (d->Group == d->Depth) {
 		d->Group = 0; //Leave a g
 		d->DFC ++; //if g, is next DF
-	}
-}
-
-void printfuncs(struct defunc *f) {
-	int i, j;
-	for (i = 0; i < FUNCTYPES && f[i].name[0]; i++) {
-		printf("Func %s; %i, %i, i:", f[i].name, f[i].numi, f[i].numo);
-		for (j = 0; j < f[i].numi; j++)
-			printf(" (%f,%f)", f[i].i[j].x, f[i].i[j].y);
-		printf("; o:");
-		for (j = 0; j < f[i].numo; j++)
-			printf(" (%f,%f)", f[i].o[j].x, f[i].o[j].y);
-		putchar('\n');
 	}
 }
 
@@ -173,8 +131,15 @@ int main(int argc, char **argv) {
 	}
 	XML_ParserFree(parser);
 	//Print out the gathered function types
-	printfuncs(d.DFL);
-	printf("----------------\n");
-	printfuncs(d.UFL);
+	int i, j;
+	for (i = 0; i < FUNCTYPES && d.DFL[i].name[0]; i++) {
+		printf("Func %s; %i, %i, i:", d.DFL[i].name, d.DFL[i].numi, d.DFL[i].numo);
+		for (j = 0; j < d.DFL[i].numi; j++)
+			printf(" (%f,%f)", d.DFL[i].i[j].x, d.DFL[i].i[j].y);
+		printf("; o:");
+		for (j = 0; j < d.DFL[i].numo; j++)
+			printf(" (%f,%f)", d.DFL[i].o[j].x, d.DFL[i].o[j].y);
+		putchar('\n');
+	}
 	return 0;
 }
