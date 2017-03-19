@@ -1,7 +1,6 @@
 #include"flompiler.h"
-#include<expat.h>
 #include<stdio.h>
-#include<strings.h>
+#include<string.h>
 
 const XML_Char *val4key(const XML_Char **attr, const XML_Char *key) { //Gives the b in a="b" for (array, a)
 	int i;

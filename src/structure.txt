@@ -1,0 +1,5 @@
+flompiler.h is the shared header file.
+main.c is the main function and things it needs directly.
+extract.c is the code for turning the SVG into data.
+connect.c relates the data taken from extract.c into a tree.
+compile.sh is a little script I wrote to make the compiling easy

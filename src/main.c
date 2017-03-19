@@ -1,11 +1,10 @@
 #include"flompiler.h"
-#include<expat.h>
 #include<stdio.h>
 
 void printfuncs(struct defunc *f) {
 	int i, j;
 	for (i = 0; i < FUNCTYPES && f[i].name[0]; i++) {
-		printf("Func %s; %i, %i, i:", f[i].name, f[i].numi, f[i].numo);
+		printf("Func %i: %s; %i, %i, i:", i, f[i].name, f[i].numi, f[i].numo);
 		for (j = 0; j < f[i].numi; j++)
 			printf(" (%f,%f)", f[i].i[j].x, f[i].i[j].y);
 		printf("; o:");
@@ -13,6 +12,16 @@ void printfuncs(struct defunc *f) {
 			printf(" (%f,%f)", f[i].o[j].x, f[i].o[j].y);
 		putchar('\n');
 	}
+}
+
+void printtfuncs(struct tfunc *f, int indent) { //watch the extra t
+	int i, j, k = indent;
+	while (k-- > 0)
+		printf(" ");
+	printf("TFUNC: %s; %i\n", f->name, f->numo);
+	for (i = 0; i < f->numo; i++)
+		for (j = 0; f->o[i][j]; j++)
+			printtfuncs(f->o[i][j], indent + 1);
 }
 
 int main(int argc, char **argv) {
@@ -47,5 +56,9 @@ int main(int argc, char **argv) {
 	printfuncs(d.DFL);
 	printf("----------------\n");
 	printfuncs(d.UFL);
+	printf("----------------\n");
+	struct tfunc tfuncs[MAXFUNCS];
+	connect(tfuncs, &d);
+	printtfuncs(tfuncs, 0);
 	return 0;
 }
