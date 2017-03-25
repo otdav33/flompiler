@@ -144,6 +144,8 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 			struct point offset = {atof(x), atof(y)};
 			usefunc(d->UFL + d->UFC, offset, d->DFL + i);
 			d->UFC++;
+			if (!(UFC % FUNCTYPES)) //if UFC is divisable by FUNCTYPES, therefore is above the limit
+				realloc(UFL, sizeof(struct defunc) * (UFC + FUNCTYPES)); //extend space by another FUNCTYPES
 		}
 		if (!strcmp(name, "path")) {
 			const XML_Char *s = val4key(attr, "d");
@@ -151,6 +153,8 @@ void start(void *data, const XML_Char *name, const XML_Char **attr) {
 			f2l2(p, s);
 			d->APL[d->APC++] = p[0];
 			d->APL[d->APC++] = p[1]; //process and store arrow
+			if (!(APC % (2 * INITIALFUNCS))) //if above limit
+				realloc(APL, APC + (2 * INITIALFUNCS));
 		}
 	}
 	d->Depth++; //we are descending, after all.

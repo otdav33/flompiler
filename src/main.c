@@ -41,6 +41,9 @@ int main(int argc, char **argv) {
 	size_t len = fread(str, sizeof(XML_Char), MAXCHAR, file);
 	//setup memory variable
 	struct data d;
+	d.DFL = calloc(sizeof(struct defunc), INITIALFUNCS);
+	d.UFL = calloc(sizeof(struct defunc), FUNCTYPES);
+	d.APL = calloc(sizeof(struct point), 2 * INITIALFUNCS); //needs to have even length
 	XML_SetUserData(parser, &d);
 	//do actual work
 	if (!XML_Parse(parser, str, len, 1)) {
@@ -59,6 +62,9 @@ int main(int argc, char **argv) {
 	printf("----------------\n");
 	struct tfunc tfuncs[MAXFUNCS];
 	connect(tfuncs, &d);
+	free(d.DFL);
+	free(d.UFL);
 	printtfuncs(tfuncs, 0);
+	free(d.APL);
 	return 0;
 }
