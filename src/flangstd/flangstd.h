@@ -7,13 +7,9 @@
 #define Difference(a, b) (a - b)
 #define Product(a, b) (a * b)
 #define Quotient(a, b) (a / b)
-
-double Print(double v) {
-	putchar((int) v);
-	return v;
-}
-double Keyboard(double v) {
-	return (double) getchar();
-}
+#define Print(a) putchar(a)
+#define Keyboard(a) getchar()
+#define Equals(a, b) if(a == b)
+#define Greater(a, b) if(a > b)
 
 #endif
