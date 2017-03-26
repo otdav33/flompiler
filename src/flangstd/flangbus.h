@@ -4,38 +4,36 @@
 #include<stdlib.h>
 #define FLANG_BUS_INITIAL_SIZE 64 //I like the number 64, but it's arbitrary.
 
+//Conceptually, a Flang bus should operate like this:
+//It should be shaped like a clock, with the only hand pointing up.
+//The thing under the hand can be Scanned, returning the value under the hand.
+//The thing under the hand can be Popped, Scanning then removing the value. The hand will go to the thing to the left of it.
+//Something can be Pushed to the right of the hand. The hand will move to the new item.
+//The hand can be rotated either direction any distance.
 struct Flang_bus {
 	//A bus is a circular buffer which will will push from the pointer, and allocate to the right.
 	//Memory works like this:
 	//smmmmmmcmmmu              bmmmme
 	//s is *start, m is memory in the buffer, c is *current, u is *used, b is *beg, and e is *end.
+	//I will call |s----|u the first memory section and |b-----|e the second.
 	//There is no allocated memory at or after *end or before *start. They ususally stay.
 	//*current moves to wherever it needs to go.
-	//*used always marks where the first section of memory ends. *beg does the beginning of the second section.
+	//*used always marks the end of the first section of memory. *beg does the beginning of the second section.
 	double *start, *current, *used, *beg, *end;
-}
+};
 
 //Make a new bus of length 64
-struct Flang_bus Flang_bus_New() {
-	struct Flang_bus f;
-	size_t length = sizeof(double) * FLANG_BUS_INITIAL_SIZE; //desired buffer length
-	f.start = malloc(length); //make the buffer
-	f.end = f.start + length;
-	f.current = f.used = f.start; //start at the beginning
-	return f;
-}
+struct Flang_bus *Flang_bus_New();
+//give the value at the current position
+#define Flang_bus_Scan(f) (*f->current)
+//give the value at the current position, then remove it
+double Flang_bus_Pop(struct Flang_bus *f);
+//put in a new value to the right of the current, then push up the current.
+void Flang_bus_Push(struct Flang_bus *f, double v);
+double Flang_bus_Length(struct Flang_bus *f);
+//move current up
+void Flang_bus_RotateLeft(struct Flang_bus *f, double steps);
+//move current down
+void Flang_bus_RotateRight(struct Flang_bus *f, double steps);
 
-//Double bus length. This will move *end and *beg with the last section of memory so you can fit more data.
-Flang_bus_Extend(struct Flang_bus f) {
-	size_t halflength = f.end - f.start;
-	size_t length = halflength * 2;
-	realloc(f, length);
-	double *i = f.end, *j = (f.end += halflength); //iterators starting at the old and new ends
-	while (--i >= f.beg)
-		*(--j) = *i; //move all the data.
-	f.beg += halflength;
-}
-
-double Flang_bus_Pop(struct Flang_bus f) {
-	double v = *f.current; //return value
-	for (
+#endif
