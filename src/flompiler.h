@@ -8,11 +8,12 @@
 
 struct func {
 	char ins[MAXVALS][WORDLEN], outs[MAXVALS][WORDLEN], name[WORDLEN]; //inputs and outputs, name of function
+	//terminators are if (ins[i][0]) (outs[i][0]) (name[0]) then end
 	char satisfied; //mask for if the inputs are satisfied
 };
 
 struct value {
-	char name[WORDLEN], type[WORDLEN], declared;
+	char name[WORDLEN], type[WORDLEN], declared, constant;
 };
 
 //will divide the chars of s into a new group every char in sep, and put the result in result.
@@ -21,11 +22,13 @@ void split(char **result, char *s, char *sep);
 //will transfer code to a structure
 struct func *read(char *s);
 
-//This should be run when a value is satisfied.
-//p is the C program text, funcs is all functions, and value is the satisfied value.
-void satisfy(char *program, struct value *values, struct func *funcs, char *value);
-
 int indexofvalue(struct value *values, char *value);
+
+//return all values from *f
+struct value *makevals(struct func *f);
+
+//update every func.satisfied flag for a value
+void satisfy(struct func *funcs, char *value);
 
 //converts a value to C for inputs
 char *convvar(char *varname);
