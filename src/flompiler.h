@@ -18,9 +18,6 @@ struct value {
 //will divide the chars of s into a new group every char in sep, and put the result in result.
 void split(char **result, char *s, char *sep);
 
-//converts a value to C for inputs
-char *convvar(char *varname);
-
 //will transfer code to a structure
 struct func *read(char *s);
 
@@ -30,8 +27,11 @@ void satisfy(char *program, struct value *values, struct func *funcs, char *valu
 
 int indexofvalue(struct value *values, char *value);
 
+//converts a value to C for inputs
+char *convvar(char *varname);
+
 //will run a function funcs[i] and put code into p
-void runfunc(char *program, struct value *values, struct func *funcs);
+void runfunc(char *program, struct value *values, struct func *funcs, int i);
 
 //make a program and put it in program
 void makemain(char *program, struct value *values, struct func *funcs);
