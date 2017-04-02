@@ -1,0 +1,19 @@
+#include<stdio.h>
+#define Left(a, b) (a)
+#define Putchar(a) putchar(a)
+#define Getchar(a) getchar()
+#define Sum(a, b) (a + b)
+#define Difference(a, b) (a - b)
+#define Product(a, b) (a * b)
+#define Quotient(a, b) (a / b)
+
+start start 'g g f
+start #1 one
+one g Sum h
+g Putchar pg
+h pg Left lh
+lh Putchar plh
+plh 'c c
+c Putchar cp
+cp Getchar gc
+gc Putchar
