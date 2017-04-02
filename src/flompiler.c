@@ -138,24 +138,17 @@ char *decl(struct value *v) {
 void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 	printf("running %s\n", funcs[i].name);
 	int j, k;
-	if (funcs[i].outs[1][0]) { //multiple outputs
-		fprintf(stderr, "Multiple outputs are not yet supported, line %i.\n", i);
-		exit(0);
-		for (j = 0; funcs[i].outs[j]; j++) { //iterate outs
-			//TODO
-		}
-		//TODO
-	} else { //one output
-		char *line = malloc(LINELEN); //stores current line
-		if (funcs[i].outs[0][0]) {
-			int valindex = indexofvalue(values, funcs[i].outs[0]);
+	char *line = malloc(LINELEN); //stores current line
+	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
+		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
+			//do the "type var = "
+			int valindex = indexofvalue(values, funcs[i].outs[j]);
 			if (valindex == -1) {
-				fprintf(stderr, "Value %s is taken, but isn't given.\n", funcs[i].outs[0]);
+				fprintf(stderr, "Value %s is taken, but isn't given, line %i.\n", funcs[i].outs[j], i);
 				exit(0);
 			}
 			strcat(line, decl(values + valindex));
-		}
-		if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') {
+			//do the "val;\n"
 			if (funcs[i].name[0] == '#') {
 				strcat(line, funcs[i].name + 1);
 			} else {
@@ -165,21 +158,38 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 				strcat(line, temp);
 			}
 			strcat(line, ";\n");
-		} else {
-			//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
-			//or "val = func(ins[0], ins[1], ...);\n"
-			//"func("
-			strcat(line, funcs[i].name);
-			strcat(line, "(");
-			for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
-				strcat(line, strcmp(funcs[i].ins[j], "start") ? funcs[i].ins[j] : "0"); //put input
-				if (funcs[i].ins[j+1][0]) //if not the last input
-					strcat(line, ", ");
-			}
-			strcat(line, ");\n");
 		}
-		strcat(program, line); //put the line in the program
-		satisfy(funcs, funcs[i].outs[0]); //satisfy the current function
+	} else if (funcs[i].outs[1][0]) { //multiple outputs
+		fprintf(stderr, "Multiple outputs are not yet supported, line %i.\n", i);
+		exit(0);
+		for (j = 0; funcs[i].outs[j]; j++) { //iterate outs
+			//TODO
+		}
+		//TODO
+	} else { //one output
+		if (funcs[i].outs[0][0]) {
+			int valindex = indexofvalue(values, funcs[i].outs[0]);
+			if (valindex == -1) {
+				fprintf(stderr, "Value %s is taken, but isn't given, line %i.\n", funcs[i].outs[0], i);
+				exit(0);
+			}
+			strcat(line, decl(values + valindex));
+		}
+		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
+		//or "val = func(ins[0], ins[1], ...);\n"
+		//"func("
+		strcat(line, funcs[i].name);
+		strcat(line, "(");
+		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
+			strcat(line, strcmp(funcs[i].ins[j], "start") ? funcs[i].ins[j] : "0"); //put input
+			if (funcs[i].ins[j+1][0]) //if not the last input
+				strcat(line, ", ");
+		}
+		strcat(line, ");\n");
+	}
+	strcat(program, line); //put the line in the program
+	for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
+		satisfy(funcs, funcs[i].outs[j]); //satisfy the current function
 	}
 }
 
