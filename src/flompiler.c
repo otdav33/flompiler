@@ -92,7 +92,7 @@ void printfunc(struct func f) {
 }
 
 //update every func.satisfied flag for a value
-void satisfy(struct func *funcs, char *value) {
+void satisfy(char *program, struct value *values, struct func *funcs, char *value) {
 	printf("starting to satisfy %s\n", value);
 	int i, j;
 	for (i = 0; funcs[i].name[0]; i++) { //loop through funcs
@@ -103,6 +103,10 @@ void satisfy(struct func *funcs, char *value) {
 				printf("presatisfied is %i. 1 << j is %i.\n", funcs[i].satisfied, 1 << j);
 				funcs[i].satisfied |= 1 << j;
 				printf("satisfied %s at func %i, input %i to #%i.\n", value, i, j, funcs[i].satisfied);
+				if (issatisfied(funcs + i)) {
+					runfunc(program, values, funcs, i);
+					funcs[i].satisfied = 0;
+				}
 			}
 	}
 }
@@ -113,24 +117,26 @@ int issatisfied(struct func *f) {
 	char i, sat = 0; //iterator, holds full potential satisfaction
 	for (i = 0; i < MAXVALS && f->ins[i][0]; i++) //iterate inputs
 		sat |= 1 << i; //calculate potential satisfaction
-	printf("midway %i %i\n", sat, f->satisfied);
 	if (sat == f->satisfied) //f is fully satisfied
 		return 1;
 	printf("no. %i != %i\n", f->satisfied, sat);
 	return 0;
 }
 
-//will give the "type var = "
-char *decl(struct value *v) {
+//will give the "type var" or "var" depending on which is appropriate.
+char *lvalue(struct value *v) {
 	char *line = malloc(LINELEN); //return value
 	//put "type " if needed
 	if (!v->declared) {
-		strcat(line, "char ");
+		if (v->type) {
+			strcat(line, v->type);
+			strcat(line, " ");
+		} else
+			strcat(line, "char ");
 		v->declared = 1;
 	}
 	//variable "name = "
 	strcat(line, v->name);
-	strcat(line, " = ");
 	return line;
 }
 
@@ -147,18 +153,22 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 				fprintf(stderr, "Value %s is taken, but isn't given, line %i.\n", funcs[i].outs[j], i);
 				exit(0);
 			}
-			strcat(line, decl(values + valindex));
-			//do the "val;\n"
+			char *rvalue = malloc(WORDLEN);
 			if (funcs[i].name[0] == '#') {
-				strcat(line, funcs[i].name + 1);
+				strcpy(rvalue, funcs[i].name + 1);
+				values[valindex].type = "double";
 			} else {
-				char *temp = malloc(3);
-				strcpy(temp, "'x'");
-				temp[1] = funcs[i].name[1];
-				strcat(line, temp);
+				strcpy(rvalue, "'x'");
+				rvalue[1] = funcs[i].name[1];
+				values[valindex].type = "char";
 			}
+			strcat(line, lvalue(values + valindex));
+			strcat(line, " = ");
+			strcat(line, rvalue);
+			//do the "val;\n"
 			strcat(line, ";\n");
 		}
+	//} else if (!srcmp(funcs[i].name, "Greater") || !strcmp(funcs[i].name, "Equal")) {
 	} else if (funcs[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported, line %i.\n", i);
 		exit(0);
@@ -173,12 +183,16 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 				fprintf(stderr, "Value %s is taken, but isn't given, line %i.\n", funcs[i].outs[0], i);
 				exit(0);
 			}
-			strcat(line, decl(values + valindex));
+			strcat(line, lvalue(values + valindex));
+			strcat(line, " = ");
 		}
 		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
 		//or "val = func(ins[0], ins[1], ...);\n"
 		//"func("
-		strcat(line, funcs[i].name);
+		if (funcs[i].name[0] == '@')
+			strcat(line, funcs[i].name + 1);
+		else
+			strcat(line, funcs[i].name);
 		strcat(line, "(");
 		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
 			strcat(line, strcmp(funcs[i].ins[j], "start") ? funcs[i].ins[j] : "0"); //put input
@@ -189,25 +203,8 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 	}
 	strcat(program, line); //put the line in the program
 	for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
-		satisfy(funcs, funcs[i].outs[j]); //satisfy the current function
+		satisfy(program, values, funcs, funcs[i].outs[j]); //satisfy the current function
 	}
-}
-
-//make a program and put it in program
-void makemain(char *program, struct value *values, struct func *funcs) {
-	strcpy(program, "#include<flang.h>\n\nint main() {\n");
-	satisfy(funcs, "start");
-	int anyprocessed = 1, i;
-	while (anyprocessed) { //keep processing until you can't anymore.
-		anyprocessed = 0;
-		for (i = 0; funcs[i].name[0]; i++)
-			if (issatisfied(funcs + i)) {
-				runfunc(program, values, funcs, i);
-				funcs[i].satisfied = 0;
-				anyprocessed = 1;
-			}
-	}
-	strcat(program, "}\n");
 }
 
 int main() {
@@ -218,11 +215,14 @@ int main() {
 	struct func *funcs = read(flangprogram);
 	printf("main: finished reading\n");
 	struct value *values = makevals(funcs);
+	values[indexofvalue(values, "start")].type = "double";
 	int i;
 	for (i = 0; values[i].name[0]; i++) //advance to matching value
 		printf("main: value[%i] = %s;\n", i, values[i].name);
 	char *program = malloc(MAXLINES * LINELEN);
-	makemain(program, values, funcs);
+	strcat(program, "#include<stdio.h>\n#define Left(a, b)\n#define Putchar(a) putchar(a)\n#define Getchar(a) getchar()\n#define Sum(a, b) (a + b)\n#define Difference(a, b) (a - b)\n#define Product(a, b) (a * b)\n#define Quotient(a, b) (a / b)\n\nint main() {\n");
+	satisfy(program, values, funcs, "start");
+	strcat(program, "}\n");
 	printf("main: output:\n%s", program);
 	return 0;
 }

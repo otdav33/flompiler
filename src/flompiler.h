@@ -13,7 +13,7 @@ struct func {
 };
 
 struct value {
-	char name[WORDLEN], type[WORDLEN], declared, constant;
+	char name[WORDLEN], *type, declared, constant;
 };
 
 //will divide the chars of s into a new group every char in sep, and put the result in result.
@@ -28,12 +28,9 @@ int indexofvalue(struct value *values, char *value);
 struct value *makevals(struct func *f);
 
 //update every func.satisfied flag for a value
-void satisfy(struct func *funcs, char *value);
+void satisfy(char *program, struct value *values, struct func *funcs, char *value);
 
 //will run a function funcs[i] and put code into p
 void runfunc(char *program, struct value *values, struct func *funcs, int i);
-
-//make a program and put it in program
-void makemain(char *program, struct value *values, struct func *funcs);
 
 #endif
