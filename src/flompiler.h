@@ -20,7 +20,7 @@ struct value {
 void split(char **result, char *s, char *sep);
 
 //will transfer code to a structure
-struct func *read(char *s);
+struct func *read(char *escaped, char *s);
 
 int indexofvalue(struct value *values, char *value);
 
