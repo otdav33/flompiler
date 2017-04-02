@@ -97,17 +97,13 @@ void satisfy(struct func *funcs, char *value) {
 	int i, j;
 	for (i = 0; funcs[i].name[0]; i++) { //loop through funcs
 		printfunc(funcs[i]);
-		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) {//loop through ins
-			printf("strcmp(%s, %s) = %i\n", funcs[i].ins[j], value, strcmp(funcs[i].ins[j], value));
-			printf("equality: 0=%i, 1=%i, 2=%i, 3=%i a=%i b=%i\n", funcs[i].ins[j][0] == value[0], funcs[i].ins[j][1] == value[1], funcs[i].ins[j][2] == value[2], funcs[i].ins[j][3] == value[3], funcs[i].ins[j][3], value[3]);
-			printf("len: %i, %i\n", strlen(funcs[i].ins[j]), strlen(value));
+		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) //loop through ins
 			if (!strcmp(funcs[i].ins[j], value)) { //matches
 				//do other functions if they are ready
 				printf("presatisfied is %i. 1 << j is %i.\n", funcs[i].satisfied, 1 << j);
 				funcs[i].satisfied |= 1 << j;
 				printf("satisfied %s at func %i, input %i to #%i.\n", value, i, j, funcs[i].satisfied);
 			}
-		}
 	}
 }
 
@@ -117,27 +113,33 @@ int issatisfied(struct func *f) {
 	char i, sat = 0; //iterator, holds full potential satisfaction
 	for (i = 0; i < MAXVALS && f->ins[i][0]; i++) //iterate inputs
 		sat |= 1 << i; //calculate potential satisfaction
+	printf("midway %i %i\n", sat, f->satisfied);
 	if (sat == f->satisfied) //f is fully satisfied
 		return 1;
 	printf("no. %i != %i\n", f->satisfied, sat);
 	return 0;
 }
 
-//converts a value to C for inputs
-char *convvar(char *varname) {
-	if (!strcmp(varname, "start"))
-		return "0";
-	//TODO constants
-	else
-		return varname;
+//will give the "type var = "
+char *decl(struct value *v) {
+	char *line = malloc(LINELEN); //return value
+	//put "type " if needed
+	if (!v->declared) {
+		strcat(line, "char ");
+		v->declared = 1;
+	}
+	//variable "name = "
+	strcat(line, v->name);
+	strcat(line, " = ");
+	return line;
 }
 
 //will run a function funcs[i] and put code into p
 void runfunc(char *program, struct value *values, struct func *funcs, int i) {
-	printf("Func %s is fully satisfied. Running\n", funcs[i].name);
+	printf("running %s\n", funcs[i].name);
 	int j, k;
 	if (funcs[i].outs[1][0]) { //multiple outputs
-		fprintf(stderr, "Multiple outputs are not yet supported.\n");
+		fprintf(stderr, "Multiple outputs are not yet supported, line %i.\n", i);
 		exit(0);
 		for (j = 0; funcs[i].outs[j]; j++) { //iterate outs
 			//TODO
@@ -145,36 +147,38 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 		//TODO
 	} else { //one output
 		char *line = malloc(LINELEN); //stores current line
-		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
-		//or "val = func(ins[0], ins[1], ...);\n"
 		if (funcs[i].outs[0][0]) {
 			int valindex = indexofvalue(values, funcs[i].outs[0]);
 			if (valindex == -1) {
 				fprintf(stderr, "Value %s is taken, but isn't given.\n", funcs[i].outs[0]);
 				exit(0);
 			}
-			//put "type " if needed
-			if (!values[valindex].declared) {
-				strcat(line, "char ");
-				values[valindex].declared = 1;
+			strcat(line, decl(values + valindex));
+		}
+		if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') {
+			if (funcs[i].name[0] == '#') {
+				strcat(line, funcs[i].name + 1);
+			} else {
+				char *temp = malloc(3);
+				strcpy(temp, "'x'");
+				temp[1] = funcs[i].name[1];
+				strcat(line, temp);
 			}
-			//variable "name = "
-			strcat(line, values[valindex].name);
-			strcat(line, " = ");
+			strcat(line, ";\n");
+		} else {
+			//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
+			//or "val = func(ins[0], ins[1], ...);\n"
+			//"func("
+			strcat(line, funcs[i].name);
+			strcat(line, "(");
+			for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
+				strcat(line, strcmp(funcs[i].ins[j], "start") ? funcs[i].ins[j] : "0"); //put input
+				if (funcs[i].ins[j+1][0]) //if not the last input
+					strcat(line, ", ");
+			}
+			strcat(line, ");\n");
 		}
-		//"func("
-		strcat(line, funcs[i].name);
-		strcat(line, "(");
-		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
-			strcat(line, convvar(funcs[i].ins[j])); //put input
-			if (funcs[i].ins[j+1][0]) //if not the last input
-				strcat(line, ", ");
-		}
-		strcat(line, ");\n");
-		printf("Line is: %s", line);
 		strcat(program, line); //put the line in the program
-		printf("%s will be satisfied.\n", funcs[i].outs[0]);
-		printf("len is %i\n", funcs[i].outs[0]);
 		satisfy(funcs, funcs[i].outs[0]); //satisfy the current function
 	}
 }
@@ -200,7 +204,7 @@ int main() {
 	printf("main: started\n");
 	char *flangprogram = malloc(MAXLINES * LINELEN);
 	fread(flangprogram, sizeof(char), MAXLINES * LINELEN, stdin);
-	printf("Inputted program is m\"%s\"\n", flangprogram);
+	printf("Inputted program is \"%s\"\n", flangprogram);
 	struct func *funcs = read(flangprogram);
 	printf("main: finished reading\n");
 	struct value *values = makevals(funcs);
