@@ -3,93 +3,91 @@
 #include<string.h>
 #include"flompiler.h"
 
-//will divide the chars of s into a new group every char in sep, and put the result in result.
-void split(char **result, char *s, char *sep) {
-	int i = 0, j, k = 0;
-	for (; *s && *s != EOF; s++) {
-		//check if the character is in sep
-		for (j = 0; sep[j] && *s != sep[j]; j++);
-		if (!sep[j]) //reached end of sep so no match
-			result[k][i++] = *s;
-		else if (i > 0) //noncontiguous match
-			i = result[k++][i] = 0;
+//will divide the chars of s into a new group every char in sep, and put the result in result. WARNING: destroys *s
+char **split(char *s, char sep) {
+	char **result = malloc(MAXLINES);
+	char *next; //next found sep
+	int i = 0, dist; //index of result
+	while (*s && (next = strchr(s, sep))) {
+		dist = next - s;
+		if (dist) { //if you aren't on a sep
+			result[i] = malloc(dist+1); //need an extra for the null.
+			strncpy(result[i], s, dist); //slice it and move up
+			result[i++][dist] = '\0'; //put on terminator
+		}
+		s = 1 + next;
 	}
-	if (!sep[j]) //no match
-		result[k++][i] = 0; //go one past end and add terminator
-	result[k] = 0; // null terminator
+	result[i] = malloc(strlen(s)); //need an extra for the null.
+	strcpy(result[i++], s); //put on the last string.
+	result[i] = ""; //null terminator (points to the memory address of a baked-in "" string.
+	return result;
 }
 
 //will transfer code to a structure
-struct func *read(char *escaped, char *s) {
-	//split s into lines
-	char **a = malloc(MAXLINES);
-	struct func *funclist = calloc(sizeof(struct func), MAXLINES);
-	int i, j, k, f = 0;
-	for (i = 0; i < MAXLINES; i++)
-		a[i] = malloc(LINELEN);
-	split(a, s, "\n");
-	//Each line is in a[line number]
-	for (i = 0; a[i]; i++) {
+void read(struct scope *scopes, char *escaped, char *s) {
+	//i = line index, j = word index, k = output index, f = normal line index, si = scope index
+	int i, j, k, f = 0, si = 0;
+	char **a = split(s, '\n');
+	//iterate through lines
+	for (i = 0; a[i][0]; i++) {
 		if (a[i][0] == '#') {
 			strcat(escaped, a[i]);
 			strcat(escaped, "\n");
-			printf("catted line %s\n", a[i]);
+			printf("catted line '%s'\n", a[i]);
 			continue;
 		}
-		if (a[i][0] == '@') {
-			strcat(escaped, a[i] + 1);
-			strcat(escaped, "\n");
-			continue;
-		}
-		printf("normal line %s %i\n", a[i], f);
+		printf("normal line '%s' %i\n", a[i], f);
 		//split a[i] into lines
-		char **line = malloc(LINELEN/WORDLEN);
-		for (j = 0; j < LINELEN/WORDLEN; j++)
-			line[j] = malloc(WORDLEN);
-		split(line, a[i], " ");
-		//put the inputs into funclist[i]
-		for (j = 0; j < MAXVALS && line[j] && line[j][0] >= 'a' && line[j][0] <= 'z'; j++)
-			strcpy(funclist[f].ins[j], line[j]);
-		if (!j) {
-			fprintf(stderr, "No inputs were specified for function %s, line %i.\n", funclist[f].name, i + 1);
-			exit(0);
-		}
-		//put the function name into funclist[f]
-		if (!line[j]) {
-			fprintf(stderr, "No function specified, line %i.\n", i + 1);
-			exit(0);
-		}
-		strcpy(funclist[f].name, line[j++]);
-		//put the outputs into funclist[f]
-		for (k = 0; k < MAXVALS && line[j] && line[j][0] >= 'a' && line[j][0] <= 'z'; k++)
-			strcpy(funclist[f].outs[k], line[j++]);
-		funclist[f++].satisfied = 0; //inputs are not yet satisfied. I don't know if it needs set.
-	}
-	funclist[f].name[0] = 0; //null terminator
-	return funclist;
-}
+		char **words = split(a[i], ' ');
 
-int indexofvalue(struct value *values, char *value) {
-	int i;
-	for (i = 0; values[i].name[0] && strcmp(values[i].name, value); i++); //advance to matching value
-	if (!values[i].name[0]) //no value found
-		return -1;
-	return i;
-}
-
-//return all values from *f
-//TODO: type checking
-struct value *makevals(struct func *f) {
-	struct value *vals = calloc(sizeof(struct value), MAXLINES * MAXVALS);
-	int i, j, k = 0; //index of f, outs, vals
-	for (i = 0; f[i].name[0]; i++)
-		for (j = 0; f[i].outs[j][0]; j++)
-			if (indexofvalue(vals, f[i].outs[j]) == -1) { //value not already in vals
-				strcpy(vals[k].name, f[i].outs[j]);
-				vals[k++].declared = 0;
+		char currentlineislambda = 0;
+		//find a lambda
+		for (j = 0; j < MAXVALS && words[j][0]; j++)
+			if (words[j][0] == ';') {
+				//switch scopes
+				if (j == 0) {
+					fprintf(stderr, "A function must have inputs.\n");
+					exit(1);
+				}
+				if (f) {
+					//final stuff
+					scopes[si].f[f].name[0] = 0; //null terminator
+					f = 0;
+				}
+				currentlineislambda = 1;
+				break;
 			}
-	vals[k].name[0] = 0;
-	return vals;
+		if (!f && !currentlineislambda) {
+			fprintf(stderr, "the first line must be a lambda.\n");
+			exit(1);
+		}
+		//put the inputs into scopes[si].f[i]
+		printf("words[0] = '%s'\n", words[0]);
+		for (j = 0; j < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; j++)
+			strcpy(scopes[si].f[f].ins[j], words[j]);
+		if (!j) {
+			fprintf(stderr, "No inputs were specified for function %s, line %i.\n", scopes[si].f[f].name, i + 1);
+			exit(1);
+		}
+		//put the function name into scopes[si].f[f]
+		if (!words[j]) {
+			fprintf(stderr, "No function specified, line %i.\n", i + 1);
+			exit(1);
+		}
+		strcpy(scopes[si].f[f].name, words[j++]);
+		//put the outputs into scopes[si].f[f]
+		for (k = 0; k < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; k++)
+			strcpy(scopes[si].f[f].outs[k], words[j++]);
+		scopes[si].f[f++].satisfied = 0; //inputs are not yet satisfied. I don't know if it needs set.
+		//for (j = 0; j < LINELEN; j++)
+		//free(words[j]);
+		//free(words);
+	}
+	//final stuff
+	scopes[si].f[f].name[0] = 0; //null terminator
+	//for (i = 0; i < MAXLINES; i++)
+	//free(a[i]);
+	free(a);
 }
 
 void printfunc(struct func f) {
@@ -115,56 +113,64 @@ int issatisfied(struct func *f) {
 	return 0;
 }
 
+//only return the name before the "$" if there is a "$"
+char *beforedollar(char *s) {
+	char *r = malloc(WORDLEN);
+	strcpy(r, s);
+	char *posdollar = strchr(r, '$');
+	if (posdollar)
+		r[posdollar - r] = '\0';
+	return r;
+}
+
 //update every func.satisfied flag for a value
-void satisfy(char *program, struct value *values, struct func *funcs, char *value) {
+void satisfy(char *program, struct func *funcs, char *value) {
 	printf("starting to satisfy %s\n", value);
 	int i, j;
 	for (i = 0; funcs[i].name[0]; i++) { //loop through funcs
 		printfunc(funcs[i]);
-		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) //loop through ins
-			if (!strcmp(funcs[i].ins[j], value)) { //matches
+		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+			if (!strcmp(beforedollar(funcs[i].ins[j]), beforedollar(value))) { //matches
 				//do other functions if they are ready
 				printf("presatisfied is %i. 1 << j is %i.\n", funcs[i].satisfied, 1 << j);
 				funcs[i].satisfied |= 1 << j;
 				printf("satisfied %s at func %i, input %i to #%i.\n", value, i, j, funcs[i].satisfied);
 				if (issatisfied(funcs + i)) {
-					runfunc(program, values, funcs, i);
+					runfunc(program, funcs, i);
 					funcs[i].satisfied = 0;
 				}
 			}
+		}
 	}
 }
 
 //will give the "type var" or "var" depending on which is appropriate.
-char *lvalue(struct value *v) {
+char *decl(char *s) {
 	char *line = malloc(LINELEN); //return value
 	//put "type " if needed
-	if (!v->declared) {
-		if (v->type) {
-			strcat(line, v->type);
-			strcat(line, " ");
-		} else
-			strcat(line, "double ");
-		v->declared = 1;
-	}
+	char *posdollar = strchr(s, '$');
+	if (posdollar) {
+		strcpy(line, posdollar + 1);
+		strcat(line, " ");
+	} else
+		strcpy(line, "double ");
 	//variable "name = "
-	strcat(line, v->name);
+	char *bd = beforedollar(s);
+	printf("bd of '%s' is '%s'\n", s, bd);
+	strcat(line, bd);
+	strcat(line, ";\n");
+	free(bd);
 	return line;
 }
 
 //will run a function funcs[i] and put code into p
-void runfunc(char *program, struct value *values, struct func *funcs, int i) {
+void runfunc(char *program, struct func *funcs, int i) {
 	printf("running %s\n", funcs[i].name);
 	int j, k;
 	char *line = malloc(LINELEN); //stores current line
 	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
 		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
 			//do the "type var = "
-			int valindex = indexofvalue(values, funcs[i].outs[j]);
-			if (valindex == -1) {
-				fprintf(stderr, "Value %s is taken, but isn't given, function #%i.\n", funcs[i].outs[j], i);
-				exit(0);
-			}
 			char *rvalue = malloc(WORDLEN);
 			if (funcs[i].name[0] == '#') {
 				strcpy(rvalue, funcs[i].name + 1);
@@ -172,28 +178,23 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 				strcpy(rvalue, "'x'");
 				rvalue[1] = funcs[i].name[1];
 			}
-			strcat(line, lvalue(values + valindex));
+			strcat(line, beforedollar(funcs[i].outs[j]));
 			strcat(line, " = ");
 			strcat(line, rvalue);
+			free(rvalue);
 			//do the "val;\n"
 			strcat(line, ";\n");
 		}
-	//} else if (!srcmp(funcs[i].name, "Greater") || !strcmp(funcs[i].name, "Equal")) {
+		strcat(program, line); //put the line in the program
+		for (j = 0; funcs[i].outs[j][0]; j++) //iterate through outputs
+			satisfy(program, funcs, funcs[i].outs[j]); //satisfy the output
 	} else if (funcs[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported.\n");
-		exit(0);
-		for (j = 0; funcs[i].outs[j]; j++) { //iterate outs
-			//TODO
-		}
+		exit(1);
 		//TODO
 	} else { //one output
 		if (funcs[i].outs[0][0]) {
-			int valindex = indexofvalue(values, funcs[i].outs[0]);
-			if (valindex == -1) {
-				fprintf(stderr, "Value %s is taken, but isn't given, function #%i.\n", funcs[i].outs[0], i);
-				exit(0);
-			}
-			strcat(line, lvalue(values + valindex));
+			strcat(line, beforedollar(funcs[i].outs[0]));
 			strcat(line, " = ");
 		}
 		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
@@ -210,10 +211,9 @@ void runfunc(char *program, struct value *values, struct func *funcs, int i) {
 				strcat(line, ", ");
 		}
 		strcat(line, ");\n");
-	}
-	strcat(program, line); //put the line in the program
-	for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
-		satisfy(program, values, funcs, funcs[i].outs[j]); //satisfy the current function
+		strcat(program, line); //put the line in the program
+		if (funcs[i].outs[0][0]) //check if there is an output
+			satisfy(program, funcs, funcs[i].outs[0]); //satisfy the output
 	}
 }
 
@@ -223,16 +223,20 @@ int main() {
 	fread(flangprogram, sizeof(char), MAXLINES * LINELEN, stdin);
 	printf("Inputted program is \"%s\"\n", flangprogram);
 	char *program = malloc(MAXLINES * LINELEN);
+	struct scope *scopes = calloc(sizeof(struct scope), MAXSCOPES);
 	program[0] = 0;
-	struct func *funcs = read(program, flangprogram);
+	read(scopes, program, flangprogram);
 	printf("main: finished reading\n");
-	struct value *values = makevals(funcs);
-	values[indexofvalue(values, "start")].type = "double";
-	int i;
-	for (i = 0; values[i].name[0]; i++) //advance to matching value
-		printf("main: value[%i] = %s;\n", i, values[i].name);
 	strcat(program, "\nint main() {\n");
-	satisfy(program, values, funcs, "start");
+	int i, j;
+	for (i = 0; scopes[0].f[i].name[0]; i++)
+		for (j = 0; scopes[0].f[i].outs[j][0]; j++) {
+			printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
+			char *d = decl(scopes[0].f[i].outs[j]);
+			strcat(program, d);
+			free(d);
+		}
+	satisfy(program, scopes[0].f, "start");
 	strcat(program, "}\n");
 	printf("main: output:\n%s", program);
 	return 0;
