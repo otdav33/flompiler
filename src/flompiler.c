@@ -45,10 +45,6 @@ void read(struct scope *scopes, char *escaped, char *s) {
 		for (j = 0; j < MAXVALS && words[j][0]; j++)
 			if (words[j][0] == ';') {
 				//switch scopes
-				if (j == 0) {
-					fprintf(stderr, "A function must have inputs.\n");
-					exit(1);
-				}
 				if (f) {
 					//final stuff
 					scopes[si].f[f].name[0] = 0; //null terminator
@@ -65,10 +61,6 @@ void read(struct scope *scopes, char *escaped, char *s) {
 		printf("words[0] = '%s'\n", words[0]);
 		for (j = 0; j < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; j++)
 			strcpy(scopes[si].f[f].ins[j], words[j]);
-		if (!j) {
-			fprintf(stderr, "No inputs were specified for function %s, line %i.\n", scopes[si].f[f].name, i + 1);
-			exit(1);
-		}
 		//put the function name into scopes[si].f[f]
 		if (!words[j]) {
 			fprintf(stderr, "No function specified, line %i.\n", i + 1);
@@ -168,6 +160,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 	printf("running %s\n", funcs[i].name);
 	int j, k;
 	char *line = malloc(LINELEN); //stores current line
+	strcpy(line, "");
 	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
 		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
 			//do the "type var = "
@@ -175,8 +168,9 @@ void runfunc(char *program, struct func *funcs, int i) {
 			if (funcs[i].name[0] == '#') {
 				strcpy(rvalue, funcs[i].name + 1);
 			} else {
-				strcpy(rvalue, "'x'");
-				rvalue[1] = funcs[i].name[1];
+				strcpy(rvalue, "\'");
+				strcat(rvalue, funcs[i].name + 1);
+				strcat(rvalue, "'");
 			}
 			strcat(line, beforedollar(funcs[i].outs[j]));
 			strcat(line, " = ");
@@ -185,6 +179,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 			//do the "val;\n"
 			strcat(line, ";\n");
 		}
+		printf("line: '%s'\n", line);
 		strcat(program, line); //put the line in the program
 		for (j = 0; funcs[i].outs[j][0]; j++) //iterate through outputs
 			satisfy(program, funcs, funcs[i].outs[j]); //satisfy the output
@@ -215,6 +210,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 		if (funcs[i].outs[0][0]) //check if there is an output
 			satisfy(program, funcs, funcs[i].outs[0]); //satisfy the output
 	}
+	free(line);
 }
 
 int main() {
@@ -224,7 +220,7 @@ int main() {
 	printf("Inputted program is \"%s\"\n", flangprogram);
 	char *program = malloc(MAXLINES * LINELEN);
 	struct scope *scopes = calloc(sizeof(struct scope), MAXSCOPES);
-	program[0] = 0;
+	strcpy(program, "");
 	read(scopes, program, flangprogram);
 	printf("main: finished reading\n");
 	strcat(program, "\nint main() {\n");
@@ -236,6 +232,9 @@ int main() {
 			strcat(program, d);
 			free(d);
 		}
+	for (i = 0; scopes[0].f[i].name[0]; i++)
+		if (!scopes[0].f[i].ins[j][0] && scopes[0].f[i].name[0] != ';')
+			runfunc(program, scopes[0].f, i);
 	satisfy(program, scopes[0].f, "start");
 	strcat(program, "}\n");
 	printf("main: output:\n%s", program);
