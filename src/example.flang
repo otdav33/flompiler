@@ -12,7 +12,7 @@ start start 'g g f
 start #1 one
 one g Sum h
 g Putchar pg
-h pg Left lh$char
+h pg Left lh<char>
 lh Putchar plh
 plh 'c c
 c Putchar cp

@@ -3,6 +3,8 @@
 #include<string.h>
 #include"flompiler.h"
 
+#define dprint(expr, f) printf(#expr " = %" f "\n", expr);
+
 //will divide the chars of s into a new group every char in sep, and put the result in result. WARNING: destroys *s
 char **split(char *s, char sep) {
 	char **result = malloc(MAXLINES);
@@ -105,24 +107,38 @@ int issatisfied(struct func *f) {
 	return 0;
 }
 
-//only return the name before the "$" if there is a "$"
-char *beforedollar(char *s) {
-	char *r = malloc(WORDLEN);
+//get the name before the "<" if there is a "<" and put it in *r
+void namefromvalue(char *r, char *s) {
 	strcpy(r, s);
-	char *posdollar = strchr(r, '$');
-	if (posdollar)
-		r[posdollar - r] = '\0';
-	return r;
+	char *pos = strchr(r, '<');
+	if (pos)
+		r[pos - r] = '\0';
+}
+
+//get type from a value, format: "value<type>", puts it in *r, unless it returns 1, in which case the type is not specified
+int typefromvalue(char *r, char *s) {
+	char *posgt = strchr(s, '<');
+	if (!posgt) //default type is double
+		return 1;
+	posgt++;
+	size_t len = strchr(posgt, '>') - posgt;
+	strncpy(r, posgt, len);
+	r[len] = '\0';
+	return 0;
 }
 
 //update every func.satisfied flag for a value
 void satisfy(char *program, struct func *funcs, char *value) {
 	printf("starting to satisfy %s\n", value);
+	char *namein  = malloc(WORDLEN);
+	char *nameval = malloc(WORDLEN);
+	namefromvalue(nameval, value);
 	int i, j;
 	for (i = 0; funcs[i].name[0]; i++) { //loop through funcs
 		printfunc(funcs[i]);
 		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-			if (!strcmp(beforedollar(funcs[i].ins[j]), beforedollar(value))) { //matches
+			namefromvalue(namein, funcs[i].ins[j]);
+			if (!strcmp(namein, nameval)) { //matches
 				//do other functions if they are ready
 				printf("presatisfied is %i. 1 << j is %i.\n", funcs[i].satisfied, 1 << j);
 				funcs[i].satisfied |= 1 << j;
@@ -136,23 +152,17 @@ void satisfy(char *program, struct func *funcs, char *value) {
 	}
 }
 
-//will give the "type var" or "var" depending on which is appropriate.
-char *decl(char *s) {
-	char *line = malloc(LINELEN); //return value
+//will give the "type var" or "var" depending on which is appropriate, and put it in *r
+void decl(char *r, char *s) {
 	//put "type " if needed
-	char *posdollar = strchr(s, '$');
-	if (posdollar) {
-		strcpy(line, posdollar + 1);
-		strcat(line, " ");
-	} else
-		strcpy(line, "double ");
-	//variable "name = "
-	char *bd = beforedollar(s);
-	printf("bd of '%s' is '%s'\n", s, bd);
-	strcat(line, bd);
-	strcat(line, ";\n");
-	free(bd);
-	return line;
+	if (typefromvalue(r, s)) {
+		strcpy(r, "double"); //double is default type.
+	}
+	strcat(r, " ");
+	char *name = r + strlen(r);
+	namefromvalue(name, s);
+	dprint(name, "s");
+	strcat(r, ";\n");
 }
 
 //will run a function funcs[i] and put code into p
@@ -164,18 +174,15 @@ void runfunc(char *program, struct func *funcs, int i) {
 	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
 		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
 			//do the "type var = "
-			char *rvalue = malloc(WORDLEN);
-			if (funcs[i].name[0] == '#') {
-				strcpy(rvalue, funcs[i].name + 1);
-			} else {
-				strcpy(rvalue, "\'");
-				strcat(rvalue, funcs[i].name + 1);
-				strcat(rvalue, "'");
-			}
-			strcat(line, beforedollar(funcs[i].outs[j]));
+			namefromvalue(line + strlen(line), funcs[i].outs[j]);
 			strcat(line, " = ");
-			strcat(line, rvalue);
-			free(rvalue);
+			if (funcs[i].name[0] == '#') {
+				strcat(line, funcs[i].name + 1);
+			} else {
+				strcat(line, "'");
+				strcat(line, funcs[i].name + 1);
+				strcat(line, "'");
+			}
 			//do the "val;\n"
 			strcat(line, ";\n");
 		}
@@ -189,7 +196,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 		//TODO
 	} else { //one output
 		if (funcs[i].outs[0][0]) {
-			strcat(line, beforedollar(funcs[i].outs[0]));
+			namefromvalue(line, funcs[i].outs[0]);
 			strcat(line, " = ");
 		}
 		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
@@ -201,7 +208,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 			strcat(line, funcs[i].name);
 		strcat(line, "(");
 		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
-			strcat(line, strcmp(funcs[i].ins[j], "start") ? funcs[i].ins[j] : "0"); //put input
+			strcat(line, funcs[i].ins[j]); //put input
 			if (funcs[i].ins[j+1][0]) //if not the last input
 				strcat(line, ", ");
 		}
@@ -228,9 +235,7 @@ int main() {
 	for (i = 0; scopes[0].f[i].name[0]; i++)
 		for (j = 0; scopes[0].f[i].outs[j][0]; j++) {
 			printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
-			char *d = decl(scopes[0].f[i].outs[j]);
-			strcat(program, d);
-			free(d);
+			decl(program + strlen(program), scopes[0].f[i].outs[j]);
 		}
 	for (i = 0; scopes[0].f[i].name[0]; i++)
 		if (!scopes[0].f[i].ins[j][0] && scopes[0].f[i].name[0] != ';')

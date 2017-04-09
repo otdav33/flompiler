@@ -1,0 +1,5 @@
+;main
+'h h
+h @putchar ph
+ph '\n nl
+nl @putchar
