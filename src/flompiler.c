@@ -225,23 +225,25 @@ void runfunc(char *program, struct func *funcs, int i) {
 	free(line);
 }
 
-/*
 void allfuncs(char *program, struct scope *scopes) {
-	for (i = 0; scope[i]
-	strcat(program, "\nint main() {\n");
-	int i, j;
-	for (i = 0; scopes[0].f[i].name[0]; i++)
-		for (j = 0; scopes[0].f[i].outs[j][0]; j++) {
-			printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
-			decl(program + strlen(program), scopes[0].f[i].outs[j]);
-		}
-	for (i = 0; scopes[0].f[i].name[0]; i++)
-		if (!scopes[0].f[i].ins[j][0] && scopes[0].f[i].name[0] != ';')
-			runfunc(program, scopes[0].f, i);
-	satisfy(program, scopes[0].f, "start");
-	strcat(program, "}\n");
+	int s, i, j;
+	for (s = 0; scopes[s].f[0].name[0]; s++) {
+		strcat(program, "\nint ");
+		strcat(program, scopes[s].f[0].name + 1); //don't copy the ; at the beginning
+		strcat(program, "() {\n");
+		for (i = 0; scopes[s].f[i].name[0]; i++)
+			for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
+				printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
+				decl(program + strlen(program), scopes[0].f[i].outs[j]);
+			}
+		for (i = 1; scopes[s].f[i].name[0]; i++)
+			if (!scopes[0].f[i].ins[j][0])
+				runfunc(program, scopes[0].f, i);
+		for (j = 0; scopes[s].f[0].outs[j][0]; j++) //start the function
+			satisfy(program, scopes[s].f, scopes[0].f[0].outs[j]);
+		strcat(program, "}\n");
+	}
 }
-*/
 
 int main() {
 	printf("main: started\n");
@@ -253,18 +255,7 @@ int main() {
 	strcpy(program, "");
 	parse(scopes, program, flangprogram);
 	printf("main: finished reading\n");
-	strcat(program, "\nint main() {\n");
-	int i, j;
-	for (i = 0; scopes[0].f[i].name[0]; i++)
-		for (j = 0; scopes[0].f[i].outs[j][0]; j++) {
-			printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
-			decl(program + strlen(program), scopes[0].f[i].outs[j]);
-		}
-	for (i = 0; scopes[0].f[i].name[0]; i++)
-		if (!scopes[0].f[i].ins[j][0] && scopes[0].f[i].name[0] != ';')
-			runfunc(program, scopes[0].f, i);
-	satisfy(program, scopes[0].f, "start");
-	strcat(program, "}\n");
+	allfuncs(program, scopes);
 	printf("main: output:\n%s", program);
 	return 0;
 }
