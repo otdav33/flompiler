@@ -2,15 +2,12 @@
 #define Left(a, b) (a)
 #define Putchar(a) putchar(a)
 #define Getchar(a) getchar()
-#define Sum(a, b) (a + b)
-#define Difference(a, b) (a - b)
-#define Product(a, b) (a * b)
-#define Quotient(a, b) (a / b)
 
 start ;main end
 'g g f
 start #1 one
-one g Sum h
+start #0 zero
+one g zero + h
 g Putchar pg
 h pg Left lh<char>
 lh Putchar plh

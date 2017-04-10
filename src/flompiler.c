@@ -141,19 +141,40 @@ void runfunc(char *program, struct func *funcs, int i) {
 	strcpy(line, "");
 	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
 		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
-			//do the "type var = "
+			//do the "var = var = ..."
 			namefrompipe(line + strlen(line), funcs[i].outs[j]);
 			strcat(line, " = ");
-			if (funcs[i].name[0] == '#') {
-				strcat(line, funcs[i].name + 1);
-			} else {
-				strcat(line, "'");
-				strcat(line, funcs[i].name + 1);
-				strcat(line, "'");
-			}
-			//do the "val;\n"
-			strcat(line, ";\n");
 		}
+		if (funcs[i].name[0] == '#') {
+			strcat(line, funcs[i].name + 1);
+		} else {
+			strcat(line, "'");
+			strcat(line, funcs[i].name + 1);
+			strcat(line, "'");
+		}
+		strcat(line, ";\n");
+		strcat(program, line); //put the line in the program
+		for (j = 0; funcs[i].outs[j][0]; j++) //iterate through outputs
+			satisfy(program, funcs, funcs[i].outs[j]); //satisfy the output
+	} else if (funcs[i].name[0] == '+'
+			|| funcs[i].name[0] == '-'
+			|| funcs[i].name[0] == '*'
+			|| funcs[i].name[0] == '/'
+			|| funcs[i].name[0] == '%') { //is a mathmatical operand.
+		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
+			//do the "var = var = ..."
+			namefrompipe(line + strlen(line), funcs[i].outs[j]);
+			strcat(line, " = ");
+		}
+		char op[4] = " x ";
+		op[1] = funcs[i].name[0]; //make " + " (as an example)
+		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
+			//do the "val + val + ..."
+			strcat(line, funcs[i].ins[j]);
+			if (funcs[i].ins[j+1][0]) //if there is a next one
+				strcat(line, op);
+		}
+		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
 		for (j = 0; funcs[i].outs[j][0]; j++) //iterate through outputs
 			satisfy(program, funcs, funcs[i].outs[j]); //satisfy the output
