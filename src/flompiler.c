@@ -189,8 +189,10 @@ void runfunc(char *program, struct func *funcs, int i) {
 
 //get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
 int typefrompipe(char *r, char *s) {
+	//get whatever's between <>'s
 	char *posgt = strchr(s, '<');
-	if (!posgt) //default type is double
+	//if not found, return 1.
+	if (!posgt)
 		return 1;
 	posgt++;
 	size_t len = strchr(posgt, '>') - posgt;
@@ -221,15 +223,14 @@ void gettype(char *r, struct scope *scopes, int s, int f, int o) {
 				return;
 		}
 		for (i = 0; scopes[i].f[0].name[0]; i++) //iterate through scopes
-			for (j = 0; scopes[i].f[j].name[0]; j++) //iterate through funcs
-				if (scopes[i].f[j].name[0] == ';' && !strcmp(scopes[i].f[j].name, funcname)) { //if it is a matching lambda
-					if (scopes[i].f[j].ins[1][0]) {
-						eprint("multiple outputs not yet supported.\n");
-						exit(0);
-					}
-					if (!typefrompipe(r, scopes[i].f[j].ins[o])) //if a type is found, we are done.
-						return;
+			if (!strcmp(scopes[i].f[0].name, funcname)) { //if it is a matching lambda
+				if (scopes[i].f[0].ins[1][0]) {
+					eprint("multiple outputs not yet supported.\n");
+					exit(0);
 				}
+				if (!typefrompipe(r, scopes[i].f[0].ins[o])) //if a type is found, we are done.
+					return;
+			}
 		printf("No type specified for %s. Assuming double.\n", scopes[s].f[f].outs[o]);
 		strcpy(r, "double /*No type found*/");
 	}
@@ -246,13 +247,23 @@ void decl(char *r, struct scope *scopes, int s, int f, int o) {
 
 void allfuncs(char *program, struct scope *scopes) {
 	int s, i, j;
+	char *tempname = malloc(WORDLEN); //to store pipe names
 	for (s = 0; scopes[s].f[0].name[0]; s++) {
 		char ismain = !strcmp(";main", scopes[s].f[0].name);
 		if (ismain)
 			strcat(program, "\nint "); //main always returns an int.
 		else {
 			strcat(program, "\n");
-			(program + strlen(program), scopes[s].f[0].outs[0]);
+			//put in type. typefrompipe will do the magic for us for the most part.
+			if (typefrompipe(program + strlen(program), scopes[s].f[0].outs[0]))
+				//typefrompipe is useless. It can't determine the type!
+				//iterate through local functions, searching for a return value
+				for (i = 1; scopes[s].f[i].name[0]; i++)
+					for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
+						namefrompipe(tempname, scopes[s].f[i].outs[j]);
+						if (!strcmp(tempname, scopes[s].f[0].outs[0])) //matches
+							gettype(program + strlen(program), scopes, s, i, j);
+					}
 			strcat(program, " ");
 		}
 		strcat(program, scopes[s].f[0].name + 1); //don't copy the ; at the beginning
