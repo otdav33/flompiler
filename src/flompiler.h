@@ -8,6 +8,8 @@
 #define MAXSCOPES 100 //largest line size
 #define MAXWORDS 17 //most words per line
 
+#define eprint(expr) fprintf(stderr, expr);
+
 struct func {
 	char ins[MAXVALS][WORDLEN], outs[MAXVALS][WORDLEN], name[WORDLEN]; //inputs and outputs, name of function
 	//terminators are if (ins[i][0]) (outs[i][0]) (name[0]) then end

@@ -3,10 +3,9 @@
 #include<string.h>
 #include"flompiler.h"
 
-#define dprint(expr, f) printf(#expr " = '%" f "'\n", expr);
-#define eprint(expr) fprintf(stderr, expr);
+#define dprint(expr, f) printf(#expr " = '%" f "'\n", expr); //for debugging
 
-//TODO: implement +-*/%
+//TODO: support multiple return values
 
 //will divide the chars of s into a new group every char in sep, and put the result in r.
 void split(char **r, char *s, char sep) {
@@ -312,6 +311,12 @@ void allfuncs(char *program, struct scope *scopes) {
 		//satisfy the lambda's arguments
 		for (j = 0; scopes[s].f[0].ins[j][0]; j++)
 			satisfy(program, scopes[s].f, scopes[s].f[0].ins[j]);
+		//return value;
+		if (scopes[s].f[0].outs[0][0]) { //if there are outputs
+			strcat(program, "return ");
+			strcat(program, scopes[s].f[0].outs[0]);
+			strcat(program, ";\n");
+		}
 		strcat(program, "}\n");
 	}
 }

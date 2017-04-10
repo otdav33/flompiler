@@ -3,7 +3,7 @@
 #define Putchar(a) putchar(a)
 #define Getchar(a) getchar()
 
-start ;main end
+start ;main
 'g g f
 start #1 one
 start #0 zero
