@@ -6,6 +6,7 @@
 #define LINELEN 5000 //largest line size
 #define MAXLINES 5000 //largest line size
 #define MAXSCOPES 100 //largest line size
+#define MAXWORDS 17 //most words per line
 
 struct func {
 	char ins[MAXVALS][WORDLEN], outs[MAXVALS][WORDLEN], name[WORDLEN]; //inputs and outputs, name of function
@@ -19,7 +20,7 @@ struct scope {
 };
 
 //will divide the chars of s into a new group every char in sep, and put the result in result.
-char **split(char *s, char sep);
+void split(char **r, char *s, char sep);
 
 //will transfer code to a structure
 void read(struct scope *scopes, char *escaped, char *s);

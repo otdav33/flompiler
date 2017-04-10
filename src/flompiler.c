@@ -3,53 +3,57 @@
 #include<string.h>
 #include"flompiler.h"
 
-#define dprint(expr, f) printf(#expr " = %" f "\n", expr);
+#define dprint(expr, f) printf(#expr " = '%" f "'\n", expr);
 
-//will divide the chars of s into a new group every char in sep, and put the result in result. WARNING: destroys *s
-char **split(char *s, char sep) {
-	char **result = malloc(MAXLINES);
+//will divide the chars of s into a new group every char in sep, and put the result in r.
+void split(char **r, char *s, char sep) {
 	char *next; //next found sep
 	int i = 0, dist; //index of result
 	while (*s && (next = strchr(s, sep))) {
 		dist = next - s;
 		if (dist) { //if you aren't on a sep
-			result[i] = malloc(dist+1); //need an extra for the null.
-			strncpy(result[i], s, dist); //slice it and move up
-			result[i++][dist] = '\0'; //put on terminator
+			strncpy(r[i], s, dist); //slice it and move up
+			r[i++][dist] = '\0'; //put on terminator
 		}
 		s = 1 + next;
 	}
-	result[i] = malloc(strlen(s)); //need an extra for the null.
-	strcpy(result[i++], s); //put on the last string.
-	result[i] = ""; //null terminator (points to the memory address of a baked-in "" string.
-	return result;
+	strcpy(r[i++], s); //put on the last string.
+	strcpy(r[i], ""); //null terminator (points to the memory address of a baked-in "" string.
 }
 
 //will transfer code to a structure
-void read(struct scope *scopes, char *escaped, char *s) {
+void parse(struct scope *scopes, char *escaped, char *s) {
 	//i = line index, j = word index, k = output index, f = normal line index, si = scope index
 	int i, j, k, f = 0, si = 0;
-	char **a = split(s, '\n');
+	char **lines = malloc(sizeof(char *) * MAXLINES); //array of lines
+	for (i = 0; i < MAXLINES; i++)
+		lines[i] = malloc(LINELEN);
+	char **words = malloc(sizeof(char *) * MAXWORDS); //array of words in current line
+	for (i = 0; i < MAXWORDS; i++) {
+		words[i] = malloc(WORDLEN);
+	}
+
+	split(lines, s, '\n');
 	//iterate through lines
-	for (i = 0; a[i][0]; i++) {
-		if (a[i][0] == '#') {
-			strcat(escaped, a[i]);
+	for (i = 0; lines[i][0]; i++) {
+		if (lines[i][0] == '#') {
+			strcat(escaped, lines[i]);
 			strcat(escaped, "\n");
-			printf("catted line '%s'\n", a[i]);
+			printf("catted line '%s'\n", lines[i]);
 			continue;
 		}
-		printf("normal line '%s' %i\n", a[i], f);
-		//split a[i] into lines
-		char **words = split(a[i], ' ');
+		printf("normal line '%s' %i\n", lines[i], f);
+		//split words[i] into lines
+		split(words, lines[i], ' ');
 
 		char currentlineislambda = 0;
 		//find a lambda
-		for (j = 0; j < MAXVALS && words[j][0]; j++)
+		for (j = 0; j < MAXWORDS && words[j][0]; j++)
 			if (words[j][0] == ';') {
 				//switch scopes
 				if (f) {
 					//final stuff
-					scopes[si].f[f].name[0] = 0; //null terminator
+					scopes[si++].f[f].name[0] = 0; //null terminator
 					f = 0;
 				}
 				currentlineislambda = 1;
@@ -60,7 +64,6 @@ void read(struct scope *scopes, char *escaped, char *s) {
 			exit(1);
 		}
 		//put the inputs into scopes[si].f[i]
-		printf("words[0] = '%s'\n", words[0]);
 		for (j = 0; j < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; j++)
 			strcpy(scopes[si].f[f].ins[j], words[j]);
 		//put the function name into scopes[si].f[f]
@@ -73,15 +76,17 @@ void read(struct scope *scopes, char *escaped, char *s) {
 		for (k = 0; k < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; k++)
 			strcpy(scopes[si].f[f].outs[k], words[j++]);
 		scopes[si].f[f++].satisfied = 0; //inputs are not yet satisfied. I don't know if it needs set.
-		//for (j = 0; j < LINELEN; j++)
-		//free(words[j]);
-		//free(words);
 	}
 	//final stuff
 	scopes[si].f[f].name[0] = 0; //null terminator
-	//for (i = 0; i < MAXLINES; i++)
-	//free(a[i]);
-	free(a);
+/*
+	for (i = 0; i < MAXLINES; i++)
+		free(lines[i]);
+	for (i = 0; i < MAXWORDS; i++)
+		free(words[i]);
+	free(lines);
+	free(words);
+	*/
 }
 
 void printfunc(struct func f) {
@@ -220,6 +225,24 @@ void runfunc(char *program, struct func *funcs, int i) {
 	free(line);
 }
 
+/*
+void allfuncs(char *program, struct scope *scopes) {
+	for (i = 0; scope[i]
+	strcat(program, "\nint main() {\n");
+	int i, j;
+	for (i = 0; scopes[0].f[i].name[0]; i++)
+		for (j = 0; scopes[0].f[i].outs[j][0]; j++) {
+			printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
+			decl(program + strlen(program), scopes[0].f[i].outs[j]);
+		}
+	for (i = 0; scopes[0].f[i].name[0]; i++)
+		if (!scopes[0].f[i].ins[j][0] && scopes[0].f[i].name[0] != ';')
+			runfunc(program, scopes[0].f, i);
+	satisfy(program, scopes[0].f, "start");
+	strcat(program, "}\n");
+}
+*/
+
 int main() {
 	printf("main: started\n");
 	char *flangprogram = malloc(MAXLINES * LINELEN);
@@ -228,7 +251,7 @@ int main() {
 	char *program = malloc(MAXLINES * LINELEN);
 	struct scope *scopes = calloc(sizeof(struct scope), MAXSCOPES);
 	strcpy(program, "");
-	read(scopes, program, flangprogram);
+	parse(scopes, program, flangprogram);
 	printf("main: finished reading\n");
 	strcat(program, "\nint main() {\n");
 	int i, j;
