@@ -4,6 +4,9 @@
 #include"flompiler.h"
 
 #define dprint(expr, f) printf(#expr " = '%" f "'\n", expr);
+#define eprint(expr) fprintf(stderr, expr);
+
+//TODO: implement +-*/%
 
 //will divide the chars of s into a new group every char in sep, and put the result in r.
 void split(char **r, char *s, char sep) {
@@ -79,14 +82,6 @@ void parse(struct scope *scopes, char *escaped, char *s) {
 	}
 	//final stuff
 	scopes[si].f[f].name[0] = 0; //null terminator
-/*
-	for (i = 0; i < MAXLINES; i++)
-		free(lines[i]);
-	for (i = 0; i < MAXWORDS; i++)
-		free(words[i]);
-	free(lines);
-	free(words);
-	*/
 }
 
 void printfunc(struct func f) {
@@ -120,18 +115,6 @@ void namefrompipe(char *r, char *s) {
 		r[pos - r] = '\0';
 }
 
-//get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
-int typefrompipe(char *r, char *s) {
-	char *posgt = strchr(s, '<');
-	if (!posgt) //default type is double
-		return 1;
-	posgt++;
-	size_t len = strchr(posgt, '>') - posgt;
-	strncpy(r, posgt, len);
-	r[len] = '\0';
-	return 0;
-}
-
 //update every func.satisfied flag for a pipe
 void satisfy(char *program, struct func *funcs, char *pipe) {
 	printf("starting to satisfy %s\n", pipe);
@@ -155,24 +138,6 @@ void satisfy(char *program, struct func *funcs, char *pipe) {
 			}
 		}
 	}
-}
-
-//autotyping: put the type into r, scopes, scope #, function #, input/output, pipe #
-void gettype(char *r, struct scope *scopes, int s, int f, char io, int n) {
-
-}
-
-//will give the "type var" or "var" depending on which is appropriate, and put it in *r
-void decl(char *r, char *s, char *end) {
-	//put "type " if needed
-	if (typefrompipe(r, s)) {
-		strcpy(r, "double"); //double is default type.
-	}
-	strcat(r, " ");
-	char *name = r + strlen(r);
-	namefrompipe(name, s);
-	dprint(name, "s");
-	strcat(r, end);
 }
 
 //will run a function funcs[i] and put code into p
@@ -230,12 +195,69 @@ void runfunc(char *program, struct func *funcs, int i) {
 	free(line);
 }
 
+//get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
+int typefrompipe(char *r, char *s) {
+	char *posgt = strchr(s, '<');
+	if (!posgt) //default type is double
+		return 1;
+	posgt++;
+	size_t len = strchr(posgt, '>') - posgt;
+	strncpy(r, posgt, len);
+	r[len] = '\0';
+	return 0;
+}
+
+//autotyping: give the type to *r. Takes scopes, scope #, function #, output #
+void gettype(char *r, struct scope *scopes, int s, int f, int o) {
+	if (typefrompipe(r, scopes[s].f[f].outs[o])) { //if type is specified, typefrompipe will handle it
+		char *funcname = scopes[s].f[f].name;
+		//automatically type:
+		int i, j, k; //index of scopes, scopes[s].f, and scopes[s].f[f].ins/outs
+		//look through outputs of functions to see if it's defined in the declaration
+		//remember: lambda
+		switch (funcname[0]) {
+			case '\'':
+				strcpy(r, "char");
+				return;
+			case '+':
+			case '-':
+			case '*':
+			case '/':
+			case '%':
+			case '#':
+				strcpy(r, "double");
+				return;
+		}
+		for (i = 0; scopes[i].f[0].name[0]; i++) //iterate through scopes
+			for (j = 0; scopes[i].f[j].name[0]; j++) //iterate through funcs
+				if (scopes[i].f[j].name[0] == ';' && !strcmp(scopes[i].f[j].name, funcname)) { //if it is a matching lambda
+					if (scopes[i].f[j].ins[1][0]) {
+						eprint("multiple outputs not yet supported.\n");
+						exit(0);
+					}
+					if (!typefrompipe(r, scopes[i].f[j].ins[o])) //if a type is found, we are done.
+						return;
+				}
+		printf("No type specified for %s. Assuming double.\n", scopes[s].f[f].outs[o]);
+		strcpy(r, "double /*No type found*/");
+	}
+}
+
+//will give the "type var" or "var" depending on which is appropriate, and put it in *r.
+//Takes scopes, scope #, function #, output #
+void decl(char *r, struct scope *scopes, int s, int f, int o) {
+	//put "type " if needed
+	gettype(r, scopes, s, f, o);
+	strcat(r, " ");
+	namefrompipe(r + strlen(r), scopes[s].f[f].outs[o]);
+}
+
 void allfuncs(char *program, struct scope *scopes) {
 	int s, i, j;
 	for (s = 0; scopes[s].f[0].name[0]; s++) {
 		char ismain = !strcmp(";main", scopes[s].f[0].name);
 		if (ismain)
-			strcat(program, "\nint ");
+			strcat(program, "\nint "); //main always returns an int.
 		else {
 			strcat(program, "\n");
 			typefrompipe(program + strlen(program), scopes[s].f[0].ins[0]);
@@ -248,14 +270,18 @@ void allfuncs(char *program, struct scope *scopes) {
 			for (j = 0; scopes[s].f[0].outs[j][0]; j++) {
 				if (!scopes[s].f[0].outs[j+1][0])
 					endcap = ""; //last argument gets no comma.
-				decl(program + strlen(program), scopes[s].f[0].outs[j], endcap);
+				decl(program + strlen(program), scopes, s, 0, j);
+				strcat(program, endcap);
 			}
 		}
 		strcat(program, ") {\n");
 		//do declarations
 		for (i = !ismain; scopes[s].f[i].name[0]; i++) //process only main's arguments to avoid errors.
-			for (j = 0; scopes[s].f[i].outs[j][0]; j++)
-				decl(program + strlen(program), scopes[s].f[i].outs[j], ";\n");
+			for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
+				printf("starting main\n");
+				decl(program + strlen(program), scopes, s, i, j);
+				strcat(program, ";\n");
+			}
 		//do functions without inputs
 		for (i = 1; scopes[s].f[i].name[0]; i++)
 			if (!scopes[0].f[i].ins[j][0])
