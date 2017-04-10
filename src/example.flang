@@ -15,7 +15,13 @@ g Putchar pg
 h pg Left lh<char>
 lh Putchar plh
 plh 'c c
-c Putchar cp
+c Put cp
 cp Getchar gc
-gc Putchar
+gc Put2
 
+out ;Put in
+in Putchar out
+
+out ;Put2 in
+in Put once
+once Put out

@@ -113,15 +113,15 @@ int issatisfied(struct func *f) {
 }
 
 //get the name before the "<" if there is a "<" and put it in *r
-void namefromvalue(char *r, char *s) {
+void namefrompipe(char *r, char *s) {
 	strcpy(r, s);
 	char *pos = strchr(r, '<');
 	if (pos)
 		r[pos - r] = '\0';
 }
 
-//get type from a value, format: "value<type>", puts it in *r, unless it returns 1, in which case the type is not specified
-int typefromvalue(char *r, char *s) {
+//get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
+int typefrompipe(char *r, char *s) {
 	char *posgt = strchr(s, '<');
 	if (!posgt) //default type is double
 		return 1;
@@ -132,22 +132,22 @@ int typefromvalue(char *r, char *s) {
 	return 0;
 }
 
-//update every func.satisfied flag for a value
-void satisfy(char *program, struct func *funcs, char *value) {
-	printf("starting to satisfy %s\n", value);
+//update every func.satisfied flag for a pipe
+void satisfy(char *program, struct func *funcs, char *pipe) {
+	printf("starting to satisfy %s\n", pipe);
 	char *namein  = malloc(WORDLEN);
 	char *nameval = malloc(WORDLEN);
-	namefromvalue(nameval, value);
+	namefrompipe(nameval, pipe);
 	int i, j;
 	for (i = 0; funcs[i].name[0]; i++) { //loop through funcs
 		printfunc(funcs[i]);
 		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-			namefromvalue(namein, funcs[i].ins[j]);
+			namefrompipe(namein, funcs[i].ins[j]);
 			if (!strcmp(namein, nameval)) { //matches
 				//do other functions if they are ready
 				printf("presatisfied is %i. 1 << j is %i.\n", funcs[i].satisfied, 1 << j);
 				funcs[i].satisfied |= 1 << j;
-				printf("satisfied %s at func %i, input %i to #%i.\n", value, i, j, funcs[i].satisfied);
+				printf("satisfied %s at func %i, input %i to #%i.\n", pipe, i, j, funcs[i].satisfied);
 				if (issatisfied(funcs + i)) {
 					runfunc(program, funcs, i);
 					funcs[i].satisfied = 0;
@@ -157,17 +157,22 @@ void satisfy(char *program, struct func *funcs, char *value) {
 	}
 }
 
+//autotyping: put the type into r, scopes, scope #, function #, input/output, pipe #
+void gettype(char *r, struct scope *scopes, int s, int f, char io, int n) {
+
+}
+
 //will give the "type var" or "var" depending on which is appropriate, and put it in *r
-void decl(char *r, char *s) {
+void decl(char *r, char *s, char *end) {
 	//put "type " if needed
-	if (typefromvalue(r, s)) {
+	if (typefrompipe(r, s)) {
 		strcpy(r, "double"); //double is default type.
 	}
 	strcat(r, " ");
 	char *name = r + strlen(r);
-	namefromvalue(name, s);
+	namefrompipe(name, s);
 	dprint(name, "s");
-	strcat(r, ";\n");
+	strcat(r, end);
 }
 
 //will run a function funcs[i] and put code into p
@@ -179,7 +184,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
 		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
 			//do the "type var = "
-			namefromvalue(line + strlen(line), funcs[i].outs[j]);
+			namefrompipe(line + strlen(line), funcs[i].outs[j]);
 			strcat(line, " = ");
 			if (funcs[i].name[0] == '#') {
 				strcat(line, funcs[i].name + 1);
@@ -201,7 +206,7 @@ void runfunc(char *program, struct func *funcs, int i) {
 		//TODO
 	} else { //one output
 		if (funcs[i].outs[0][0]) {
-			namefromvalue(line, funcs[i].outs[0]);
+			namefrompipe(line, funcs[i].outs[0]);
 			strcat(line, " = ");
 		}
 		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
@@ -228,18 +233,35 @@ void runfunc(char *program, struct func *funcs, int i) {
 void allfuncs(char *program, struct scope *scopes) {
 	int s, i, j;
 	for (s = 0; scopes[s].f[0].name[0]; s++) {
-		strcat(program, "\nint ");
+		char ismain = !strcmp(";main", scopes[s].f[0].name);
+		if (ismain)
+			strcat(program, "\nint ");
+		else {
+			strcat(program, "\n");
+			typefrompipe(program + strlen(program), scopes[s].f[0].ins[0]);
+			strcat(program, " ");
+		}
 		strcat(program, scopes[s].f[0].name + 1); //don't copy the ; at the beginning
-		strcat(program, "() {\n");
-		for (i = 0; scopes[s].f[i].name[0]; i++)
-			for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
-				printf("main: scopes[0].f[%i].outs[%i] = '%s';\n", i, j, scopes[0].f[i].outs[j]);
-				decl(program + strlen(program), scopes[0].f[i].outs[j]);
+		strcat(program, "(");
+		if (!ismain) {
+			char *endcap = ", "; //for variable declaration
+			for (j = 0; scopes[s].f[0].outs[j][0]; j++) {
+				if (!scopes[s].f[0].outs[j+1][0])
+					endcap = ""; //last argument gets no comma.
+				decl(program + strlen(program), scopes[s].f[0].outs[j], endcap);
 			}
+		}
+		strcat(program, ") {\n");
+		//do declarations
+		for (i = !ismain; scopes[s].f[i].name[0]; i++) //process only main's arguments to avoid errors.
+			for (j = 0; scopes[s].f[i].outs[j][0]; j++)
+				decl(program + strlen(program), scopes[s].f[i].outs[j], ";\n");
+		//do functions without inputs
 		for (i = 1; scopes[s].f[i].name[0]; i++)
 			if (!scopes[0].f[i].ins[j][0])
 				runfunc(program, scopes[0].f, i);
-		for (j = 0; scopes[s].f[0].outs[j][0]; j++) //start the function
+		//satisfy the lambda's arguments
+		for (j = 0; scopes[s].f[0].outs[j][0]; j++)
 			satisfy(program, scopes[s].f, scopes[0].f[0].outs[j]);
 		strcat(program, "}\n");
 	}
