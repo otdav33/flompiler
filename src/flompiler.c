@@ -265,39 +265,55 @@ void decl(char *r, struct scope *scopes, int s, int f, int o) {
 	namefrompipe(r + strlen(r), scopes[s].f[f].outs[o]);
 }
 
+//declare a function e.g. type func(type var), and put it in *r.
+//Information is taken from scopes[s].f[0], mostly.
+void declfunc(char *r, struct scope *scopes, int s) {
+	int i, j;
+	char ismain = !strcmp(";main", scopes[s].f[0].name);
+	char *tempname = malloc(WORDLEN); //to store pipe names
+	if (ismain)
+		strcpy(r, "\nint "); //main always returns an int.
+	else {
+		strcpy(r, "\n");
+		//put in type. typefrompipe will do the magic for us for the most part.
+		if (typefrompipe(r + strlen(r), scopes[s].f[0].outs[0]))
+			//typefrompipe is useless. It can't determine the type!
+			//iterate through local functions, searching for a return value
+			for (i = 1; scopes[s].f[i].name[0]; i++)
+				for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
+					namefrompipe(tempname, scopes[s].f[i].outs[j]);
+					if (!strcmp(tempname, scopes[s].f[0].outs[0])) //matches
+						gettype(r + strlen(r), scopes, s, i, j);
+				}
+		strcat(r, " ");
+	}
+	strcat(r, scopes[s].f[0].name + 1); //don't copy the ; at the beginning
+	strcat(r, "(");
+	if (!ismain) {
+		for (j = 0; scopes[s].f[0].ins[j][0]; j++) {
+			//like decl, but for ins
+			gettype(r + strlen(r), scopes, s, 0, j);
+			strcat(r, " ");
+			namefrompipe(r + strlen(r), scopes[s].f[0].ins[j]);
+			if (scopes[s].f[0].ins[j+1][0])
+				strcat(r, ", "); //last argument gets no comma.
+		}
+	}
+	strcat(r, ")");
+	free(tempname);
+}
+
 void allfuncs(char *program, struct scope *scopes) {
 	int s, i, j;
-	char *tempname = malloc(WORDLEN); //to store pipe names
+	//initial function decl's
 	for (s = 0; scopes[s].f[0].name[0]; s++) {
-		char ismain = !strcmp(";main", scopes[s].f[0].name);
-		if (ismain)
-			strcat(program, "\nint "); //main always returns an int.
-		else {
-			strcat(program, "\n");
-			//put in type. typefrompipe will do the magic for us for the most part.
-			if (typefrompipe(program + strlen(program), scopes[s].f[0].outs[0]))
-				//typefrompipe is useless. It can't determine the type!
-				//iterate through local functions, searching for a return value
-				for (i = 1; scopes[s].f[i].name[0]; i++)
-					for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
-						namefrompipe(tempname, scopes[s].f[i].outs[j]);
-						if (!strcmp(tempname, scopes[s].f[0].outs[0])) //matches
-							gettype(program + strlen(program), scopes, s, i, j);
-					}
-			strcat(program, " ");
-		}
-		strcat(program, scopes[s].f[0].name + 1); //don't copy the ; at the beginning
-		strcat(program, "(");
-		if (!ismain) {
-			char *endcap = ", "; //for variable declaration
-			for (j = 0; scopes[s].f[0].ins[j][0]; j++) {
-				if (!scopes[s].f[0].ins[j+1][0])
-					endcap = ""; //last argument gets no comma.
-				decl(program + strlen(program), scopes, s, 0, j);
-				strcat(program, endcap);
-			}
-		}
-		strcat(program, ") {\n");
+		declfunc(program + strlen(program), scopes, s);
+		strcat(program, ";\n");
+	}
+	//actual function definitions
+	for (s = 0; scopes[s].f[0].name[0]; s++) {
+		declfunc(program + strlen(program), scopes, s);
+		strcat(program, " {\n");
 		//do declarations
 		for (i = 1; scopes[s].f[i].name[0]; i++)
 			for (j = 0; scopes[s].f[i].outs[j][0]; j++) {
@@ -309,8 +325,8 @@ void allfuncs(char *program, struct scope *scopes) {
 			if (!scopes[s].f[i].ins[0][0])
 				runfunc(program, scopes[s].f, i);
 		//satisfy the lambda's arguments
-		for (j = 0; scopes[s].f[0].ins[j][0]; j++)
-			satisfy(program, scopes[s].f, scopes[s].f[0].ins[j]);
+		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
+			satisfy(program, scopes[s].f, scopes[s].f[0].ins[i]);
 		//return value;
 		if (scopes[s].f[0].outs[0][0]) { //if there are outputs
 			strcat(program, "return ");
