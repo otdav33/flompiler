@@ -17,6 +17,7 @@ struct func {
 struct scope {
 	char name[WORDLEN];
 	struct func f[MAXLINES];
+	int subscopes;
 };
 
 //will divide the chars of s into a new group every char in sep, and put the result in result.

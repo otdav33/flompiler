@@ -7,8 +7,8 @@
 #define Product(a, b) (a * b)
 #define Quotient(a, b) (a / b)
 
-end ;main start
-start start 'g g f
+start ;main end
+'g g f
 start #1 one
 one g Sum h
 g Putchar pg
@@ -19,9 +19,9 @@ c Put cp
 cp Getchar gc
 gc Put2
 
-out ;Put in
+in ;Put out
 in Putchar out
 
-out ;Put2 in
+in ;Put2 out
 in Put once
 once Put out
