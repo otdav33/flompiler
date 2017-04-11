@@ -14,7 +14,7 @@
 #define max(a, b) (a > b ? a : b)
 
 struct func {
-	char ins[MAXVALS][WORDLEN], outs[MAXVALS][WORDLEN], *name; //inputs and outputs, name of function
+	char *ins[MAXVALS], *outs[MAXVALS], *name; //inputs and outputs, name of function
 	//terminators are if (ins[i][0]) (outs[i][0]) (name[0]) then end
 	char satisfied; //mask for if the inputs are satisfied
 };
@@ -96,8 +96,12 @@ void parse(struct scope *scopes, char *escaped, char *s) {
 			exit(1);
 		}
 		//put the inputs into scopes[si].f[i]
-		for (j = 0; j < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; j++)
+		for (j = 0; j < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; j++) {
+			scopes[si].f[f].ins[j] = malloc(strlen(words[j]) + 1);
 			strcpy(scopes[si].f[f].ins[j], words[j]);
+		}
+		scopes[si].f[f].ins[j] = malloc(1);
+		scopes[si].f[f].ins[j][0] = '\0'; //null terminator
 		//put the function name into scopes[si].f[f]
 		if (!words[j]) {
 			fprintf(stderr, "No function specified, line %i.\n", i + 1);
@@ -106,8 +110,12 @@ void parse(struct scope *scopes, char *escaped, char *s) {
 		scopes[si].f[f].name = malloc(strlen(words[j]) + 1);
 		strcpy(scopes[si].f[f].name, words[j++]);
 		//put the outputs into scopes[si].f[f]
-		for (k = 0; k < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; k++)
+		for (k = 0; k < MAXVALS && words[j][0] >= 'a' && words[j][0] <= 'z'; k++) {
+			scopes[si].f[f].outs[k] = malloc(strlen(words[j]) + 1);
 			strcpy(scopes[si].f[f].outs[k], words[j++]);
+		}
+		scopes[si].f[f].outs[k] = malloc(1);
+		scopes[si].f[f].outs[k++][0] = '\0'; //null terminator
 		//inputs are not yet satisfied.
 		scopes[si].f[f++].satisfied = 0; 
 	}
@@ -250,10 +258,10 @@ void runfunc(char *program, struct scope *scope, int i) {
 		struct scope different = branchscope(scope);
 		satisfy(program, &different, scope->f[i].outs[1]);
 		strcat(line, "}\n");
-	} else if (scope->f[i].outs[1][0]) { //multiple outputs
+	} else if (scope->f[i].outs[0][0] && scope->f[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported.\n");
 		exit(1);
-		//TODO
+		//TODO: remove this
 	} else { //one output
 		if (scope->f[i].outs[0][0]) {
 			namefrompipe(line, scope->f[i].outs[0]);
