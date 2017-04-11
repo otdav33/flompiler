@@ -2,7 +2,6 @@
 #include<stdlib.h>
 #include<string.h>
 
-
 #define MAXVALS 8 //number of inputs/outputs per function max
 #define WORDLEN 100 //largest word size
 #define LINELEN 5000 //largest line size
@@ -25,10 +24,10 @@ struct scope {
 	int subscopes;
 };
 
-//update every func.satisfied flag for a value
-void satisfy(char *program, struct func *funcs, char *value);
-
 //TODO: support multiple return values
+
+//will run a function scope.f[i] and put code into p
+void runfunc(char *program, struct scope scope, int i);
 
 //will divide the chars of s into a new group every char in sep, and put the result in r.
 void split(char **r, char *s, char sep) {
@@ -106,13 +105,11 @@ void parse(struct scope *scopes, char *escaped, char *s) {
 
 void printfunc(struct func f) {
 	int i;
-	printf("name: %s\n", f.name);
+	dprint(f.name, "s");
 	for (i = 0; f.ins[i][0]; i++)
-		printf("in: %s, ", f.ins[i]);
-	printf("\n");
+		dprint(f.ins[i], "s");
 	for (i = 0; f.outs[i][0]; i++)
-		printf("out: %s, ", f.outs[i]);
-	printf("\n");
+		dprint(f.outs[i], "s");
 }
 
 //returns true if a function is fully satisfied (only used in makemain)
@@ -134,20 +131,20 @@ void namefrompipe(char *r, char *s) {
 }
 
 //update every func.satisfied flag for a pipe
-void satisfy(char *program, struct func *funcs, char *pipe) {
+void satisfy(char *program, struct scope scope, char *pipe) {
 	char *pipename = malloc(WORDLEN); //name of pipe
 	char *inname  = malloc(WORDLEN); //name of current in
 	namefrompipe(pipename, pipe);
 	int i, j;
-	for (i = 1; funcs[i].name[0]; i++) { //loop through funcs
-		for (j = 0; funcs[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-			namefrompipe(inname, funcs[i].ins[j]);
+	for (i = 1; scope.f[i].name[0]; i++) { //loop through scope.f
+		for (j = 0; scope.f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+			namefrompipe(inname, scope.f[i].ins[j]);
 			if (!strcmp(inname, pipename)) { //matches
 				//do other functions if they are ready
-				funcs[i].satisfied |= 1 << j;
-				if (issatisfied(funcs + i)) {
-					funcs[i].satisfied = 0;
-					runfunc(program, funcs, i);
+				scope.f[i].satisfied |= 1 << j;
+				if (issatisfied(scope.f + i)) {
+					scope.f[i].satisfied = 0;
+					runfunc(program, scope, i);
 				}
 			}
 		}
@@ -156,76 +153,106 @@ void satisfy(char *program, struct func *funcs, char *pipe) {
 	free(pipename);
 }
 
-//will run a function funcs[i] and put code into p
-void runfunc(char *program, struct func *funcs, int i) {
+//returns a copy.
+struct scope branchscope(struct scope old) {
+	struct scope new;
+	int i;
+	for (i = 0; old.f[i].name[0]; i++) {
+		strcpy(new.f[i].name, old.f[i].name);
+		memcpy(new.f[i].ins, old.f[i].ins, sizeof(char [MAXVALS][WORDLEN]));
+		memcpy(new.f[i].outs, old.f[i].outs, sizeof(char [MAXVALS][WORDLEN]));
+		new.f[i].satisfied = old.f[i].satisfied;
+	}
+	sprintf(new.name, "%sn%i", old.name, ++old.subscopes);
+	new.subscopes = 0;
+}
+
+//will run a function ucope->f[i] and put code into p
+void runfunc(char *program, struct scope scope, int i) {
+	printf("began runfunc\n");
 	int j, k;
 	char *line = malloc(LINELEN); //stores current line
 	strcpy(line, "");
-	if (funcs[i].name[0] == '#' || funcs[i].name[0] == '\'') { //is constant
-		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
+	if (scope.f[i].name[0] == '#' || scope.f[i].name[0] == '\'') { //is constant
+		for (j = 0; scope.f[i].outs[j][0]; j++) { //iterate through outputs
 			//do the "var = var = ..."
-			namefrompipe(line + strlen(line), funcs[i].outs[j]);
+			namefrompipe(line + strlen(line), scope.f[i].outs[j]);
 			strcat(line, " = ");
 		}
-		if (funcs[i].name[0] == '#') {
-			strcat(line, funcs[i].name + 1);
+		if (scope.f[i].name[0] == '#') {
+			strcat(line, scope.f[i].name + 1);
 		} else {
 			strcat(line, "'");
-			strcat(line, funcs[i].name + 1);
+			strcat(line, scope.f[i].name + 1);
 			strcat(line, "'");
 		}
 		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
-		for (j = 0; funcs[i].outs[j][0]; j++) //iterate through outputs
-			satisfy(program, funcs, funcs[i].outs[j]); //satisfy the output
-	} else if (funcs[i].name[0] == '+'
-			|| funcs[i].name[0] == '-'
-			|| funcs[i].name[0] == '*'
-			|| funcs[i].name[0] == '/'
-			|| funcs[i].name[0] == '%') { //is a mathmatical operand.
-		for (j = 0; funcs[i].outs[j][0]; j++) { //iterate through outputs
+		for (j = 0; scope.f[i].outs[j][0]; j++) //iterate through outputs
+			satisfy(program, scope, scope.f[i].outs[j]); //satisfy the output
+	} else if (scope.f[i].name[0] == '+'
+			|| scope.f[i].name[0] == '-'
+			|| scope.f[i].name[0] == '*'
+			|| scope.f[i].name[0] == '/'
+			|| scope.f[i].name[0] == '%') { //is a mathmatical operand.
+		for (j = 0; scope.f[i].outs[j][0]; j++) { //iterate through outputs
 			//do the "var = var = ..."
-			namefrompipe(line + strlen(line), funcs[i].outs[j]);
+			namefrompipe(line + strlen(line), scope.f[i].outs[j]);
 			strcat(line, " = ");
 		}
 		char op[4] = " x ";
-		op[1] = funcs[i].name[0]; //make " + " (as an example)
-		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
+		op[1] = scope.f[i].name[0]; //make " + " (as an example)
+		for (j = 0; scope.f[i].ins[j][0]; j++) { //iterate through inputs
 			//do the "val + val + ..."
-			strcat(line, funcs[i].ins[j]);
-			if (funcs[i].ins[j+1][0]) //if there is a next one
+			strcat(line, scope.f[i].ins[j]);
+			if (scope.f[i].ins[j+1][0]) //if there is a next one
 				strcat(line, op);
 		}
 		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
-		for (j = 0; funcs[i].outs[j][0]; j++) //iterate through outputs
-			satisfy(program, funcs, funcs[i].outs[j]); //satisfy the output
-	} else if (funcs[i].outs[1][0]) { //multiple outputs
+		for (j = 0; scope.f[i].outs[j][0]; j++) //iterate through outputs
+			satisfy(program, scope, scope.f[i].outs[j]); //satisfy the output
+	} else if (scope.f[i].name[0] == '=' || scope.f[i].name[0] == '>') {
+		strcat(line, "if (");
+		strcat(line, scope.f[i].ins[0]);
+		if (scope.f[i].name[0] == '=')
+			strcat(line, " == ");
+		else
+			strcat(line, " > ");
+		strcat(line, scope.f[i].ins[2]);
+		strcat(line, ") {\n");
+		struct scope same = branchscope(scope);
+		satisfy(program, same, scope.f[i].outs[0]);
+		strcat(line, "} else {\n");
+		struct scope different = branchscope(scope);
+		satisfy(program, different, scope.f[i].outs[1]);
+		strcat(line, "}\n");
+	} else if (scope.f[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported.\n");
 		exit(1);
 		//TODO
 	} else { //one output
-		if (funcs[i].outs[0][0]) {
-			namefrompipe(line, funcs[i].outs[0]);
+		if (scope.f[i].outs[0][0]) {
+			namefrompipe(line, scope.f[i].outs[0]);
 			strcat(line, " = ");
 		}
 		//write out something to the effect of "type val = func(ins[0], ins[1], ...);\n"
 		//or "val = func(ins[0], ins[1], ...);\n"
 		//"func("
-		if (funcs[i].name[0] == '@')
-			strcat(line, funcs[i].name + 1);
+		if (scope.f[i].name[0] == '@')
+			strcat(line, scope.f[i].name + 1);
 		else
-			strcat(line, funcs[i].name);
+			strcat(line, scope.f[i].name);
 		strcat(line, "(");
-		for (j = 0; funcs[i].ins[j][0]; j++) { //iterate through inputs
-			strcat(line, funcs[i].ins[j]); //put input
-			if (funcs[i].ins[j+1][0]) //if not the last input
+		for (j = 0; scope.f[i].ins[j][0]; j++) { //iterate through inputs
+			strcat(line, scope.f[i].ins[j]); //put input
+			if (scope.f[i].ins[j+1][0]) //if not the last input
 				strcat(line, ", ");
 		}
 		strcat(line, ");\n");
 		strcat(program, line); //put the line in the program
-		if (funcs[i].outs[0][0]) //check if there is an output
-			satisfy(program, funcs, funcs[i].outs[0]); //satisfy the output
+		if (scope.f[i].outs[0][0]) //check if there is an output
+			satisfy(program, scope, scope.f[i].outs[0]); //satisfy the output
 	}
 	free(line);
 }
@@ -345,11 +372,15 @@ void allfuncs(char *program, struct scope *scopes) {
 			}
 		//do functions without inputs
 		for (i = 1; scopes[s].f[i].name[0]; i++)
-			if (!scopes[s].f[i].ins[0][0])
-				runfunc(program, scopes[s].f, i);
+			if (!scopes[s].f[i].ins[0][0]) {
+				printfunc(scopes[s].f[i]);
+				printf("beginning runfunc\n");
+				runfunc(program, scopes[s], i);
+				printf("ending runfunc\n");
+			}
 		//satisfy the lambda's arguments
 		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
-			satisfy(program, scopes[s].f, scopes[s].f[0].ins[i]);
+			satisfy(program, scopes[s], scopes[s].f[0].ins[i]);
 		//return value;
 		if (scopes[s].f[0].outs[0][0]) { //if there are outputs
 			strcat(program, "return ");
