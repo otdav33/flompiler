@@ -3,9 +3,9 @@
 #include<string.h>
 
 #define MAXVALS 8 //number of inputs/outputs per function max
-#define WORDLEN 100 //largest word size
-#define LINELEN 5000 //largest line size
-#define MAXLINES 5000 //largest line size
+#define WORDLEN 40 //largest word size
+#define LINELEN 80 //largest line size
+#define MAXLINES 1000 //largest number of lines
 #define MAXSCOPES 100 //largest line size
 #define MAXWORDS 17 //most words per line
 
@@ -114,7 +114,8 @@ void printfunc(struct func f) {
 
 //returns true if a function is fully satisfied (only used in makemain)
 int issatisfied(struct func *f) {
-	char i, sat = 0; //iterator, holds full potential satisfaction
+	int i;
+	char sat = 0; //iterator, holds full potential satisfaction
 	for (i = 0; i < MAXVALS && f->ins[i][0]; i++) //iterate inputs
 		sat |= 1 << i; //calculate potential satisfaction
 	if (sat == f->satisfied) //f is fully satisfied
@@ -132,6 +133,7 @@ void namefrompipe(char *r, char *s) {
 
 //update every func.satisfied flag for a pipe
 void satisfy(char *program, struct scope scope, char *pipe) {
+	dprint(pipe, "s");
 	char *pipename = malloc(WORDLEN); //name of pipe
 	char *inname  = malloc(WORDLEN); //name of current in
 	namefrompipe(pipename, pipe);
@@ -165,12 +167,12 @@ struct scope branchscope(struct scope old) {
 	}
 	sprintf(new.name, "%sn%i", old.name, ++old.subscopes);
 	new.subscopes = 0;
+	return new;
 }
 
 //will run a function ucope->f[i] and put code into p
 void runfunc(char *program, struct scope scope, int i) {
-	printf("began runfunc\n");
-	int j, k;
+	int j;
 	char *line = malloc(LINELEN); //stores current line
 	strcpy(line, "");
 	if (scope.f[i].name[0] == '#' || scope.f[i].name[0] == '\'') { //is constant
@@ -276,7 +278,7 @@ void gettype(char *r, struct scope *scopes, int s, int f, int o) {
 	if (typefrompipe(r, scopes[s].f[f].outs[o])) { //if type is specified, typefrompipe will handle it
 		char *funcname = scopes[s].f[f].name;
 		//automatically type:
-		int i, j, k; //index of scopes, scopes[s].f, and scopes[s].f[f].ins/outs
+		int i; //index of scopes
 		//look through outputs of functions to see if it's defined in the declaration
 		//remember: lambda
 		switch (funcname[0]) {
@@ -372,12 +374,8 @@ void allfuncs(char *program, struct scope *scopes) {
 			}
 		//do functions without inputs
 		for (i = 1; scopes[s].f[i].name[0]; i++)
-			if (!scopes[s].f[i].ins[0][0]) {
-				printfunc(scopes[s].f[i]);
-				printf("beginning runfunc\n");
+			if (!scopes[s].f[i].ins[0][0])
 				runfunc(program, scopes[s], i);
-				printf("ending runfunc\n");
-			}
 		//satisfy the lambda's arguments
 		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
 			satisfy(program, scopes[s], scopes[s].f[0].ins[i]);

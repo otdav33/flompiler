@@ -8,7 +8,13 @@ start ;main
 start #1 one
 start #0 zero
 one g zero + h
+one zero +
+one zero 'z
+g f 'q
+one +
+g +
 g Putchar pg
+f Putchar
 h pg Left lh<char>
 lh Putchar plh
 plh 'c c
