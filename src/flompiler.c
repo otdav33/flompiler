@@ -132,21 +132,21 @@ void namefrompipe(char *r, char *s) {
 }
 
 //update every func.satisfied flag for a pipe
-void satisfy(char *program, struct scope scope, char *pipe) {
+void satisfy(char *program, struct scope *scope, char *pipe) {
 	dprint(pipe, "s");
 	char *pipename = malloc(WORDLEN); //name of pipe
 	char *inname  = malloc(WORDLEN); //name of current in
 	namefrompipe(pipename, pipe);
 	int i, j;
-	for (i = 1; scope.f[i].name[0]; i++) { //loop through scope.f
-		for (j = 0; scope.f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-			namefrompipe(inname, scope.f[i].ins[j]);
+	for (i = 1; scope->f[i].name[0]; i++) { //loop through scope.f
+		for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+			namefrompipe(inname, scope->f[i].ins[j]);
 			if (!strcmp(inname, pipename)) { //matches
 				//do other functions if they are ready
-				scope.f[i].satisfied |= 1 << j;
-				if (issatisfied(scope.f + i)) {
-					scope.f[i].satisfied = 0;
-					runfunc(program, scope, i);
+				scope->f[i].satisfied |= 1 << j;
+				if (issatisfied(scope->f + i)) {
+					scope->f[i].satisfied = 0;
+					runfunc(program, *scope, i);
 				}
 			}
 		}
@@ -156,16 +156,16 @@ void satisfy(char *program, struct scope scope, char *pipe) {
 }
 
 //returns a copy.
-struct scope branchscope(struct scope old) {
+struct scope branchscope(struct scope *old) {
 	struct scope new;
 	int i;
-	for (i = 0; old.f[i].name[0]; i++) {
-		strcpy(new.f[i].name, old.f[i].name);
-		memcpy(new.f[i].ins, old.f[i].ins, sizeof(char [MAXVALS][WORDLEN]));
-		memcpy(new.f[i].outs, old.f[i].outs, sizeof(char [MAXVALS][WORDLEN]));
-		new.f[i].satisfied = old.f[i].satisfied;
+	for (i = 0; old->f[i].name[0]; i++) {
+		strcpy(new.f[i].name, old->f[i].name);
+		memcpy(new.f[i].ins, old->f[i].ins, sizeof(char [MAXVALS][WORDLEN]));
+		memcpy(new.f[i].outs, old->f[i].outs, sizeof(char [MAXVALS][WORDLEN]));
+		new.f[i].satisfied = old->f[i].satisfied;
 	}
-	sprintf(new.name, "%sn%i", old.name, ++old.subscopes);
+	sprintf(new.name, "%sn%i", old->name, ++old->subscopes);
 	new.subscopes = 0;
 	return new;
 }
@@ -191,7 +191,7 @@ void runfunc(char *program, struct scope scope, int i) {
 		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
 		for (j = 0; scope.f[i].outs[j][0]; j++) //iterate through outputs
-			satisfy(program, scope, scope.f[i].outs[j]); //satisfy the output
+			satisfy(program, &scope, scope.f[i].outs[j]); //satisfy the output
 	} else if (scope.f[i].name[0] == '+'
 			|| scope.f[i].name[0] == '-'
 			|| scope.f[i].name[0] == '*'
@@ -213,7 +213,7 @@ void runfunc(char *program, struct scope scope, int i) {
 		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
 		for (j = 0; scope.f[i].outs[j][0]; j++) //iterate through outputs
-			satisfy(program, scope, scope.f[i].outs[j]); //satisfy the output
+			satisfy(program, &scope, scope.f[i].outs[j]); //satisfy the output
 	} else if (scope.f[i].name[0] == '=' || scope.f[i].name[0] == '>') {
 		strcat(line, "if (");
 		strcat(line, scope.f[i].ins[0]);
@@ -223,11 +223,11 @@ void runfunc(char *program, struct scope scope, int i) {
 			strcat(line, " > ");
 		strcat(line, scope.f[i].ins[2]);
 		strcat(line, ") {\n");
-		struct scope same = branchscope(scope);
-		satisfy(program, same, scope.f[i].outs[0]);
+		struct scope same = branchscope(&scope);
+		satisfy(program, &same, scope.f[i].outs[0]);
 		strcat(line, "} else {\n");
-		struct scope different = branchscope(scope);
-		satisfy(program, different, scope.f[i].outs[1]);
+		struct scope different = branchscope(&scope);
+		satisfy(program, &different, scope.f[i].outs[1]);
 		strcat(line, "}\n");
 	} else if (scope.f[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported.\n");
@@ -254,7 +254,7 @@ void runfunc(char *program, struct scope scope, int i) {
 		strcat(line, ");\n");
 		strcat(program, line); //put the line in the program
 		if (scope.f[i].outs[0][0]) //check if there is an output
-			satisfy(program, scope, scope.f[i].outs[0]); //satisfy the output
+			satisfy(program, &scope, scope.f[i].outs[0]); //satisfy the output
 	}
 	free(line);
 }
@@ -378,7 +378,7 @@ void allfuncs(char *program, struct scope *scopes) {
 				runfunc(program, scopes[s], i);
 		//satisfy the lambda's arguments
 		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
-			satisfy(program, scopes[s], scopes[s].f[0].ins[i]);
+			satisfy(program, scopes + s, scopes[s].f[0].ins[i]);
 		//return value;
 		if (scopes[s].f[0].outs[0][0]) { //if there are outputs
 			strcat(program, "return ");
