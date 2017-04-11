@@ -21,7 +21,7 @@ struct func {
 
 struct scope {
 	char name[WORDLEN];
-	struct func f[MAXLINES];
+	struct func *f;
 	int subscopes;
 };
 
@@ -51,6 +51,15 @@ int split(char **r, char *s, char sep) {
 	r[i] = realloc(r[i], 1);
 	r[i][0] = '\0';
 	return i;
+}
+
+void final(struct scope *scopes, int si, int f) {
+	//scope name should be lambda name
+	strcpy(scopes[si].name, scopes[si].f[0].name + 1);
+	scopes[si].f[f].name = malloc(1);
+	scopes[si].f[f].name[0] = '\0'; //null terminator
+	//trim the size down to just what it needs to be.
+	scopes[si].f = realloc(scopes[si].f, sizeof(struct func) * (f + 1));
 }
 
 //will transfer code to a structure
@@ -83,11 +92,10 @@ void parse(struct scope *scopes, char *escaped, char *s) {
 				if (f) {
 					//final stuff
 					//scope name should be lambda name
-					strcpy(scopes[si].name, scopes[si].f[0].name + 1);
-					scopes[si].f[f].name = malloc(1);
-					scopes[si++].f[f].name[0] = '\0'; //null terminator
+					final(scopes, si++, f);
 					f = 0;
 				}
+				scopes[si].f = malloc(sizeof(struct func) * MAXLINES);
 				currentlineislambda = 1;
 				break;
 			}
@@ -119,13 +127,11 @@ void parse(struct scope *scopes, char *escaped, char *s) {
 		//inputs are not yet satisfied.
 		scopes[si].f[f++].satisfied = 0; 
 	}
-	//final stuff
-	//scope name should be lambda name
-	strcpy(scopes[si].name, scopes[si].f[0].name + 1);
-	scopes[si].f[f].name = malloc(1);
-	scopes[si++].f[f].name[0] = '\0'; //null terminator
+	final(scopes, si++, f);
+	//null terminator
+	scopes[si].f = malloc(sizeof(struct func));
 	scopes[si].f[0].name = malloc(1);
-	scopes[si].f[0].name[0] = '\0'; //null terminator
+	scopes[si].f[0].name[0] = '\0';
 	for (i = 0; i <= linelen; i++)
 		free(lines[i]);
 	for (i = 0; i <= wordlen; i++)
@@ -162,7 +168,6 @@ void namefrompipe(char *r, char *s) {
 
 //update every func.satisfied flag for a pipe
 void satisfy(char *program, struct scope *scope, char *pipe) {
-	dprint(pipe, "s");
 	char *pipename = malloc(WORDLEN); //name of pipe
 	char *inname  = malloc(WORDLEN); //name of current in
 	namefrompipe(pipename, pipe);
