@@ -22,8 +22,11 @@ c Put cp
 cp Getchar gc
 gc Put2
 
-in ;Put out
-in Putchar out
+putin ;Put putout
+'c c
+putin putin c = isc notc
+isc Putchar putout
+notc Putchar putout
 
 in ;Put2 out
 in Put once
