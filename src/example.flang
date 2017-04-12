@@ -30,4 +30,5 @@ notc Putchar putout
 
 in ;Put2 out
 in Put once
-once Put out
+once < hold
+hold Put out

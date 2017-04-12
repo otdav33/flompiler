@@ -279,6 +279,18 @@ runfunc(char *program, struct scope *scope, int i)
 		struct scope different = branchscope(scope);
 		satisfy(program, &different, scope->f[i].outs[1]);
 		strcat(program, "}\n");
+	} else if (scope->f[i].name[0] == '<') {
+		if (!scope->f[i].outs[0][0] || !scope->f[i].ins[0][0]) {
+			eprint("< must have an input and an output.\n");
+			exit(0);
+		}
+		//"a b < c d" => "c = a;"
+		namefrompipe(line, scope->f[i].outs[0]);
+		strcat(line, " = ");
+		strcat(line, scope->f[i].ins[0]);
+		strcat(line, ";\n");
+		strcat(program, line);
+		satisfy(program, scope, scope->f[i].outs[0]); //satisfy the output
 	} else if (scope->f[i].outs[0][0] && scope->f[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported.\n");
 		exit(1);
