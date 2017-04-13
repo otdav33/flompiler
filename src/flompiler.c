@@ -1,6 +1,6 @@
-#include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<stdio.h>
 
 #define MAXVALS 8 //number of inputs/outputs per function max
 #define WORDLEN 40 //largest word size
@@ -26,10 +26,10 @@ struct scope {
 };
 
 //TODO: support multiple return values
-//TODO: run remaining before equals
 
 //will run a function scope->f[i] and put code into p
-void runfunc(char *program, struct scope *scope, int i);
+//will return 1 if norun is satisfied, otherwise zero (norun = ""; to disable)
+int runfunc(char *program, struct scope *scope, int i, char *norun);
 
 //will divide the chars of s into a new group every char in sep.
 //puts the result in r. Returns length of r.
@@ -179,14 +179,16 @@ namefrompipe(char *r, char *s)
 		r[pos - r] = '\0';
 }
 
-//update every func.satisfied flag for a pipe
-void
-satisfy(char *program, struct scope *scope, char *pipe)
+//update every func.satisfied flag for a pipe, and if the function is satisfied,
+// run it unless the pipe is norun
+//will return 1 if norun is satisfied, otherwise zero
+int
+satisfy(char *program, struct scope *scope, char *pipe, char *norun)
 {
 	char *pipename = malloc(WORDLEN); //name of pipe
 	char *inname  = malloc(WORDLEN); //name of current in
 	namefrompipe(pipename, pipe);
-	int i, j;
+	int i, j, retval = 0;
 	for (i = 1; scope->f[i].name[0]; i++) { //loop through scope.f
 		for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
 			namefrompipe(inname, scope->f[i].ins[j]);
@@ -195,13 +197,17 @@ satisfy(char *program, struct scope *scope, char *pipe)
 				scope->f[i].satisfied |= 1 << j;
 				if (issatisfied(scope->f + i)) {
 					scope->f[i].satisfied = 0;
-					runfunc(program, scope, i);
+					if (!strcmp(inname, norun))
+						retval = 1;
+					else
+						retval |= runfunc(program, scope, i, norun);
 				}
 			}
 		}
 	}
 	free(inname);
 	free(pipename);
+	return retval;
 }
 
 //returns a copy.
@@ -217,11 +223,12 @@ branchscope(struct scope *old)
 	return new;
 }
 
-//will run a function ucope->f[i] and put code into p
-void
-runfunc(char *program, struct scope *scope, int i)
+//will run a function scope->f[i] and put code into p
+//will return 1 if norun is satisfied, otherwise zero (norun = ""; to disable)
+int
+runfunc(char *program, struct scope *scope, int i, char *norun)
 {
-	int j;
+	int j, retval = 0;
 	char *line = malloc(LINELEN); //stores current line
 	strcpy(line, "");
 	if (scope->f[i].name[0] == '#' || scope->f[i].name[0] == '\'') { //is constant
@@ -240,7 +247,7 @@ runfunc(char *program, struct scope *scope, int i)
 		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
 		for (j = 0; scope->f[i].outs[j][0]; j++) //iterate through outputs
-			satisfy(program, scope, scope->f[i].outs[j]); //satisfy the output
+			retval |= satisfy(program, scope, scope->f[i].outs[j], norun); //satisfy the output
 	} else if (scope->f[i].name[0] == '+'
 			|| scope->f[i].name[0] == '-'
 			|| scope->f[i].name[0] == '*'
@@ -262,8 +269,9 @@ runfunc(char *program, struct scope *scope, int i)
 		strcat(line, ";\n");
 		strcat(program, line); //put the line in the program
 		for (j = 0; scope->f[i].outs[j][0]; j++) //iterate through outputs
-			satisfy(program, scope, scope->f[i].outs[j]); //satisfy the output
+			retval |= satisfy(program, scope, scope->f[i].outs[j], norun); //satisfy the output
 	} else if (scope->f[i].name[0] == '=' || scope->f[i].name[0] == '>') {
+		//if (i1 == i3) o1 = i2; else o2 = i2;
 		strcat(line, "if (");
 		strcat(line, scope->f[i].ins[0]);
 		if (scope->f[i].name[0] == '=')
@@ -272,13 +280,20 @@ runfunc(char *program, struct scope *scope, int i)
 			strcat(line, " > ");
 		strcat(line, scope->f[i].ins[2]);
 		strcat(line, ") {\n");
-		strcat(program, line);
 		struct scope same = branchscope(scope);
-		satisfy(program, &same, scope->f[i].outs[0]);
-		strcat(program, "} else {\n");
+		if (satisfy(line, &same, scope->f[i].outs[0], norun)) {
+			//if a norun is found, we will do some overriding of the norun satisfaction variable.
+			strcat(line, norun);
+			strcat(line, "_satisfied = 1;\n");
+		}
+		strcat(line, "} else {\n");
 		struct scope different = branchscope(scope);
-		satisfy(program, &different, scope->f[i].outs[1]);
-		strcat(program, "}\n");
+		if (satisfy(line, &different, scope->f[i].outs[1], norun)) {
+			strcat(line, norun);
+			strcat(line, "_satisfied = 1;\n");
+		}
+		strcat(line, "}\n");
+		strcat(program, line);
 	} else if (scope->f[i].name[0] == '<') {
 		if (!scope->f[i].outs[0][0] || !scope->f[i].ins[0][0]) {
 			eprint("< must have an input and an output.\n");
@@ -290,7 +305,7 @@ runfunc(char *program, struct scope *scope, int i)
 		strcat(line, scope->f[i].ins[0]);
 		strcat(line, ";\n");
 		strcat(program, line);
-		satisfy(program, scope, scope->f[i].outs[0]); //satisfy the output
+		retval |= satisfy(program, scope, scope->f[i].outs[0], norun); //satisfy the output
 	} else if (scope->f[i].outs[0][0] && scope->f[i].outs[1][0]) { //multiple outputs
 		fprintf(stderr, "Multiple outputs are not yet supported.\n");
 		exit(1);
@@ -316,9 +331,10 @@ runfunc(char *program, struct scope *scope, int i)
 		strcat(line, ");\n");
 		strcat(program, line); //put the line in the program
 		if (scope->f[i].outs[0][0]) //check if there is an output
-			satisfy(program, scope, scope->f[i].outs[0]); //satisfy the output
+			retval |= satisfy(program, scope, scope->f[i].outs[0], norun); //satisfy the output
 	}
 	free(line);
+	return retval;
 }
 
 //get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
@@ -447,10 +463,10 @@ allfuncs(char *program, struct scope *scopes)
 		//do functions without inputs
 		for (i = 1; scopes[s].f[i].name[0]; i++)
 			if (!scopes[s].f[i].ins[0][0])
-				runfunc(program, scopes + s, i);
+				runfunc(program, scopes + s, i, "");
 		//satisfy the lambda's arguments
 		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
-			satisfy(program, scopes + s, scopes[s].f[0].ins[i]);
+			satisfy(program, scopes + s, scopes[s].f[0].ins[i], "");
 		//return value;
 		if (scopes[s].f[0].outs[0][0]) { //if there are outputs
 			strcat(program, "return ");
