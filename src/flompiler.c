@@ -57,8 +57,6 @@ split(char **r, char *s, char sep)
 void
 final(struct scope *scopes, int si, int f)
 {
-	//scope name should be lambda name
-	strcpy(scopes[si].name, scopes[si].f[0].name + 1);
 	scopes[si].f[f].name = malloc(1);
 	scopes[si].f[f].name[0] = '\0'; //null terminator
 	//trim the size down to just what it needs to be.
