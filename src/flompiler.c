@@ -11,7 +11,6 @@
 
 #define eprint(expr) fprintf(stderr, expr);
 #define dprint(expr, f) printf(#expr " = '%" f "'\n", expr); //for debugging
-#define max(a, b) (a > b ? a : b)
 
 struct func {
 	char *ins[MAXVALS], *outs[MAXVALS], *name; //inputs and outputs, name of function
@@ -85,7 +84,8 @@ parse(struct scope *scopes, char *escaped, char *s)
 			continue;
 		}
 		//split words[i] into lines, keeping track of malloc'd size
-		wordlen = max(wordlen, split(words, lines[i], ' '));
+		int spl = split(words, lines[i], ' ');
+		wordlen = wordlen > spl ? wordlen : spl;
 
 		char currentlineislambda = 0;
 		//find a lambda
