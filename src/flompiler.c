@@ -20,7 +20,6 @@ struct func {
 };
 
 struct scope {
-	char name[WORDLEN];
 	struct func *f;
 };
 
