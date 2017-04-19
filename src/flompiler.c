@@ -22,7 +22,6 @@ struct func {
 struct scope {
 	char name[WORDLEN];
 	struct func *f;
-	int subscopes;
 };
 
 //TODO: support multiple return values
@@ -218,8 +217,6 @@ branchscope(struct scope *old)
 	struct scope new;
 	for (i = 0; old->f[i].name[0]; i++);
 	new.f = old->f;
-	sprintf(new.name, "%sn%i", old->name, ++old->subscopes);
-	new.subscopes = 0;
 	return new;
 }
 
