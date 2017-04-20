@@ -7,6 +7,7 @@
 #define LINELEN 80 //largest line size
 #define MAXLINES 500 //largest number of lines
 #define MAXSCOPES 100 //largest line size
+#define NORUNS 7 //depth of while loop inside one another
 #define MAXWORDS 17 //most words per line
 
 #define eprint(expr) fprintf(stderr, expr);
@@ -26,7 +27,7 @@ struct scope {
 
 //will run a function scope->f[i] and put code into p
 //will return 1 if norun is satisfied, otherwise zero (norun = ""; to disable)
-void runfunc(char *program, struct scope *scope, int i, char *norun);
+void runfunc(char *program, struct scope *scope, int i, char **norun);
 
 //will divide the chars of s into a new group every char in sep.
 //puts the result in r. Returns length of r.
@@ -178,7 +179,7 @@ namefrompipe(char *r, char *s)
 //update every func.satisfied flag for a pipe, and if the function is satisfied,
 // run it unless the pipe is norun
 void
-satisfy(char *program, struct scope *scope, char *pipe, char *norun)
+satisfy(char *program, struct scope *scope, char *pipe, char **norun)
 {
 	char *pipename = malloc(WORDLEN); //name of pipe
 	char *inname  = malloc(WORDLEN); //name of current in
@@ -192,10 +193,7 @@ satisfy(char *program, struct scope *scope, char *pipe, char *norun)
 				scope->f[i].satisfied |= 1 << j;
 				if (issatisfied(scope->f + i)) {
 					scope->f[i].satisfied = 0;
-					if (!strcmp(inname, norun))
-						;
-					else
-						runfunc(program, scope, i, norun);
+					runfunc(program, scope, i, norun);
 				}
 			}
 		}
@@ -217,7 +215,7 @@ branchscope(struct scope *old)
 
 //will run a function scope->f[i] and put code into p
 void
-runfunc(char *program, struct scope *scope, int i, char *norun)
+runfunc(char *program, struct scope *scope, int i, char **norun)
 {
 	int j;
 	char *line = malloc(LINELEN); //stores current line
@@ -444,13 +442,20 @@ allfuncs(char *program, struct scope *scopes)
 				decl(program + strlen(program), scopes, s, i, j);
 				strcat(program, ";\n");
 			}
+
+		char **noruns = malloc(sizeof(char *) * NORUNS);
+		for (i = 0; i < NORUNS; i++) {
+			noruns[i] = malloc(WORDLEN);
+		}
 		//do functions without inputs
+		noruns[0][0] = '\0';
 		for (i = 1; scopes[s].f[i].name[0]; i++)
 			if (!scopes[s].f[i].ins[0][0])
-				runfunc(program, scopes + s, i, "");
+				runfunc(program, scopes + s, i, noruns);
 		//satisfy the lambda's arguments
+		noruns[0][0] = '\0';
 		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
-			satisfy(program, scopes + s, scopes[s].f[0].ins[i], "");
+			satisfy(program, scopes + s, scopes[s].f[0].ins[i], noruns);
 		//return value;
 		if (scopes[s].f[0].outs[0][0]) { //if there are outputs
 			strcat(program, "return ");
