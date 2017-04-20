@@ -31,7 +31,7 @@ void runfunc(char *program, struct scope *scope, int i, char **norun);
 
 //will divide the chars of s into a new group every char in sep.
 //puts the result in r. Returns length of r.
-	int
+int
 split(char **r, char *s, char sep)
 {
 	char *next; //next found sep
@@ -54,7 +54,7 @@ split(char **r, char *s, char sep)
 	return i;
 }
 
-	void
+void
 final(struct scope *scopes, int si, int f)
 {
 	scopes[si].f[f].name = malloc(1);
@@ -64,7 +64,7 @@ final(struct scope *scopes, int si, int f)
 }
 
 //will transfer code to a structure
-	void
+void
 parse(struct scope *scopes, char *escaped, char *s)
 {
 	//i = line index, j = word index, k = output index, f = normal line index, si = scope index
@@ -142,7 +142,7 @@ parse(struct scope *scopes, char *escaped, char *s)
 		free(words[i]);
 }
 
-	void
+void
 printfunc(struct func f)
 {
 	int i;
@@ -154,7 +154,7 @@ printfunc(struct func f)
 }
 
 //returns true if a function is fully satisfied (only used in makemain)
-	int
+int
 issatisfied(struct func *f)
 {
 	int i;
@@ -167,7 +167,7 @@ issatisfied(struct func *f)
 }
 
 //get the name before the "<" if there is a "<" and put it in *r
-	void
+void
 namefrompipe(char *r, char *s)
 {
 	strcpy(r, s);
@@ -178,39 +178,37 @@ namefrompipe(char *r, char *s)
 
 //update every func.satisfied flag for a pipe, and if the function is satisfied,
 // run it unless the pipe is norun
-	void
+void
 satisfy(char *program, struct scope *scope, char *pipe, char **norun)
 {
 	char *pipename = malloc(WORDLEN); //name of pipe
 	namefrompipe(pipename, pipe);
-	int i, j, nofound = 1;
 	for (i = 0; norun[i][0]; i++)
 		if (!strcmp(pipename, norun[i])) {
-			nofound = 0;
 			sprintf(program + strlen(program), "%s_satisfied = 1;\n", pipename);
+			free(pipename);
+			return;
 		}
-	if (nofound) {
-		char *inname  = malloc(WORDLEN); //name of current in
-		for (i = 1; scope->f[i].name[0]; i++) { //loop through scope.f
-			for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-				namefrompipe(inname, scope->f[i].ins[j]);
-				if (!strcmp(inname, pipename)) { //matches
-					//do other functions if they are ready
-					scope->f[i].satisfied |= 1 << j;
-					if (issatisfied(scope->f + i)) {
-						scope->f[i].satisfied = 0;
-						runfunc(program, scope, i, norun);
-					}
+	char *inname  = malloc(WORDLEN); //name of current in
+	for (i = 1; scope->f[i].name[0]; i++) { //loop through scope.f
+		for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+			namefrompipe(inname, scope->f[i].ins[j]);
+			if (!strcmp(inname, pipename)) { //matches
+				//do other functions if they are ready
+				scope->f[i].satisfied |= 1 << j;
+				if (issatisfied(scope->f + i)) {
+					scope->f[i].satisfied = 0;
+					runfunc(program, scope, i, norun);
 				}
 			}
 		}
-		free(inname);
 	}
+	free(inname);
 	free(pipename);
 }
 
 //returns a copy.
-	struct scope
+struct scope
 branchscope(struct scope *old)
 {
 	int i;
@@ -221,7 +219,7 @@ branchscope(struct scope *old)
 }
 
 //will run a function scope->f[i] and put code into p
-	void
+void
 runfunc(char *program, struct scope *scope, int i, char **norun)
 {
 	int j;
@@ -283,6 +281,7 @@ runfunc(char *program, struct scope *scope, int i, char **norun)
 		satisfy(line, &different, scope->f[i].outs[1], norun);
 		strcat(line, "}\n");
 		strcat(program, line);
+	} else if (scope->f[i].name[0] == '@') {
 	} else if (scope->f[i].name[0] == '<') {
 		if (!scope->f[i].outs[0][0] || !scope->f[i].ins[0][0]) {
 			eprint("< must have an input and an output.\n");
@@ -326,7 +325,7 @@ runfunc(char *program, struct scope *scope, int i, char **norun)
 }
 
 //get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
-	int
+int
 typefrompipe(char *r, char *s)
 {
 	//get whatever's between <>'s
@@ -342,7 +341,7 @@ typefrompipe(char *r, char *s)
 }
 
 //autotyping: give the type to *r. Takes scopes, scope #, function #, output #
-	void
+void
 gettype(char *r, struct scope *scopes, int s, int f, int o)
 {
 	if (typefrompipe(r, scopes[s].f[f].outs[o])) { //if type is specified, typefrompipe will handle it
@@ -381,7 +380,7 @@ gettype(char *r, struct scope *scopes, int s, int f, int o)
 
 //will give the "type var" or "var" depending on which is appropriate, and put it in *r.
 //Takes scopes, scope #, function #, output #
-	void
+void
 decl(char *r, struct scope *scopes, int s, int f, int o)
 {
 	//put "type " if needed
@@ -392,7 +391,7 @@ decl(char *r, struct scope *scopes, int s, int f, int o)
 
 //declare a function e.g. type func(type var), and put it in *r.
 //Information is taken from scopes[s].f[0], mostly.
-	void
+void
 declfunc(char *r, struct scope *scopes, int s)
 {
 	int i, j;
@@ -430,7 +429,7 @@ declfunc(char *r, struct scope *scopes, int s)
 	free(tempname);
 }
 
-	void
+void
 allfuncs(char *program, struct scope *scopes)
 {
 	int s, i, j;
@@ -473,7 +472,7 @@ allfuncs(char *program, struct scope *scopes)
 	}
 }
 
-	int
+int
 main()
 {
 	char *flangprogram = malloc(MAXLINES * LINELEN); //inputted program
