@@ -11,7 +11,7 @@
 #define MAXWORDS 17 //most words per line
 
 #define eprint(expr) fprintf(stderr, expr);
-#define dprint(expr, f) printf(#expr " = '%" f "'\n", expr); //for debugging
+#define dprint(expr, f) printf(#expr " is '%" f "'\n", expr); //for debugging
 
 struct func {
 	char *ins[MAXVALS], *outs[MAXVALS], *name; //inputs and outputs, name of function
@@ -183,27 +183,40 @@ satisfy(char *program, struct scope *scope, char *pipe, char **norun)
 {
 	char *pipename = malloc(WORDLEN); //name of pipe
 	namefrompipe(pipename, pipe);
-	int i, j;
+	int i, j, outs = 0;
 	for (i = 0; norun[i][0]; i++)
 		if (!strcmp(pipename, norun[i])) {
 			sprintf(program + strlen(program), "%s_satisfied = 1;\n", pipename);
 			free(pipename);
 			return;
 		}
-	char *inname  = malloc(WORDLEN); //name of current in
-	for (i = 1; scope->f[i].name[0]; i++) { //loop through scope.f
-		for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-			namefrompipe(inname, scope->f[i].ins[j]);
-			if (!strcmp(inname, pipename)) { //matches
-				//do other functions if they are ready
-				scope->f[i].satisfied |= 1 << j;
-				if (issatisfied(scope->f + i)) {
-					scope->f[i].satisfied = 0;
-					runfunc(program, scope, i, norun);
+	char *inname  = malloc(WORDLEN); //name of current in (or out)
+	//count the lambda
+	for (j = 0; scope->f[0].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+		namefrompipe(inname, scope->f[0].ins[j]);
+		if (!strcmp(inname, pipename)) //matches
+			outs++;
+	}
+	//count others
+	for (i = 1; scope->f[i].name[0]; i++) //loop through scope.f
+		for (j = 0; scope->f[i].outs[j][0] && j < MAXVALS; j++) { //loop through ins
+			namefrompipe(inname, scope->f[i].outs[j]);
+			if (!strcmp(inname, pipename)) //matches
+				outs++;
+		}
+	if (outs == 1)
+		for (i = 1; scope->f[i].name[0]; i++) //loop through scope.f
+			for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+				namefrompipe(inname, scope->f[i].ins[j]);
+				if (!strcmp(inname, pipename)) { //matches
+					//do other functions if they are ready
+					scope->f[i].satisfied |= 1 << j;
+					if (issatisfied(scope->f + i)) {
+						scope->f[i].satisfied = 0;
+						runfunc(program, scope, i, norun);
+					}
 				}
 			}
-		}
-	}
 	free(inname);
 	free(pipename);
 }
@@ -374,7 +387,7 @@ gettype(char *r, struct scope *scopes, int s, int f, int o)
 				if (!typefrompipe(r, scopes[i].f[0].outs[o])) //if a type is found, we are done.
 					return;
 			}
-		printf("No type specified for %s. Assuming double.\n", scopes[s].f[f].outs[o]);
+		fprintf(stderr, "No type specified for %s. Assuming double.\n", scopes[s].f[f].outs[o]);
 		strcpy(r, "double /*No type found*/");
 	}
 }
