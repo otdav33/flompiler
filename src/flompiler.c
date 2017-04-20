@@ -183,6 +183,7 @@ satisfy(char *program, struct scope *scope, char *pipe, char **norun)
 {
 	char *pipename = malloc(WORDLEN); //name of pipe
 	namefrompipe(pipename, pipe);
+	int i, j;
 	for (i = 0; norun[i][0]; i++)
 		if (!strcmp(pipename, norun[i])) {
 			sprintf(program + strlen(program), "%s_satisfied = 1;\n", pipename);
