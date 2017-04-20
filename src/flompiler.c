@@ -370,13 +370,14 @@ gettype(char *r, struct scope *scopes, int s, int f, int o)
 				strcpy(r, "double");
 				return;
 		}
+		//see if the type is declared elsewhere
 		for (i = 0; scopes[i].f[0].name[0]; i++) //iterate through scopes
 			if (!strcmp(scopes[i].f[0].name, funcname)) { //if it is a matching lambda
-				if (scopes[i].f[0].ins[1][0]) {
+				if (scopes[i].f[0].outs[1][0]) {
 					eprint("multiple outputs not yet supported.\n");
 					exit(0);
 				}
-				if (!typefrompipe(r, scopes[i].f[0].ins[o])) //if a type is found, we are done.
+				if (!typefrompipe(r, scopes[i].f[0].outs[o])) //if a type is found, we are done.
 					return;
 			}
 		printf("No type specified for %s. Assuming double.\n", scopes[s].f[f].outs[o]);
