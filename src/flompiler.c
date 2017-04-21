@@ -222,7 +222,7 @@ satisfy(char *program, struct scope *scope, char *pipe, char **norun)
 			if (!strcmp(inname, pipename)) //matches
 				outs++;
 		}
-	if (outs == 1) {
+	if (outs < 2) {
 		satisfysome(program, scope, inname, pipename, norun);
 	} else {
 		sprintf(program + strlen(program), "%s_satisfied = 1;\n", pipename);
