@@ -176,6 +176,24 @@ namefrompipe(char *r, char *s)
 		r[pos - r] = '\0';
 }
 
+//satisfy all pipes matching pipename. inname is a preallocated string. **norun is a list of pipesnames not to be run.
+void satisfysome(char *program, struct scope *scope, char *inname, char *pipename, char **norun) {
+	int i, j;
+	for (i = 1; scope->f[i].name[0]; i++) { //loop through scope.f
+		for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
+			namefrompipe(inname, scope->f[i].ins[j]);
+			if (!strcmp(inname, pipename)) { //matches
+				//do other functions if they are ready
+				scope->f[i].satisfied |= 1 << j;
+				if (issatisfied(scope->f + i)) {
+					scope->f[i].satisfied = 0;
+					runfunc(program, scope, i, norun);
+				}
+			}
+		}
+	}
+}
+
 //update every func.satisfied flag for a pipe, and if the function is satisfied,
 // run it unless the pipe is norun
 void
@@ -204,19 +222,25 @@ satisfy(char *program, struct scope *scope, char *pipe, char **norun)
 			if (!strcmp(inname, pipename)) //matches
 				outs++;
 		}
-	if (outs == 1)
-		for (i = 1; scope->f[i].name[0]; i++) //loop through scope.f
-			for (j = 0; scope->f[i].ins[j][0] && j < MAXVALS; j++) { //loop through ins
-				namefrompipe(inname, scope->f[i].ins[j]);
-				if (!strcmp(inname, pipename)) { //matches
-					//do other functions if they are ready
-					scope->f[i].satisfied |= 1 << j;
-					if (issatisfied(scope->f + i)) {
-						scope->f[i].satisfied = 0;
-						runfunc(program, scope, i, norun);
-					}
-				}
-			}
+	if (outs == 1) {
+		satisfysome(program, scope, inname, pipename, norun);
+	} else {
+		sprintf(program + strlen(program), "%s_satisfied = 1;\n", pipename);
+		sprintf(program + strlen(program), "while (%s_satisfied) {\n", pipename);
+		sprintf(program + strlen(program), "%s_satisfied = 0;\n", pipename);
+		//tack on the norun
+		for (i = 0; norun[i][0]; i++);
+		char **newnorun = malloc(sizeof(char) * i + 2); //one bigger than norun
+		for (i = 0; norun[i][0]; i++) {
+			strcpy(newnorun[i], norun[i]);
+		}
+		strcpy(newnorun[i], pipename);
+		newnorun[i+1][0] = '\0';
+		//REGULAR execution
+		satisfysome(program, scope, inname, pipename, newnorun);
+		strcat(program, "}\n");
+		free(newnorun);
+	}
 	free(inname);
 	free(pipename);
 }
@@ -335,7 +359,7 @@ runfunc(char *program, struct scope *scope, int i, char **norun)
 		if (scope->f[i].outs[0][0]) //check if there is an output
 			satisfy(program, scope, scope->f[i].outs[0], norun); //satisfy the output
 	}
-	free(line);
+	//free(line);
 }
 
 //get type from a pipe, format: "pipe<type>", puts it in *r, unless it returns 1, in which case the type is not specified
@@ -463,17 +487,14 @@ allfuncs(char *program, struct scope *scopes)
 				strcat(program, ";\n");
 			}
 
-		char **noruns = malloc(sizeof(char *) * NORUNS);
-		for (i = 0; i < NORUNS; i++) {
-			noruns[i] = malloc(WORDLEN);
-		}
+		char **noruns = malloc(sizeof(char *));
+		noruns[0] = malloc(1);
 		//do functions without inputs
 		noruns[0][0] = '\0';
 		for (i = 1; scopes[s].f[i].name[0]; i++)
 			if (!scopes[s].f[i].ins[0][0])
 				runfunc(program, scopes + s, i, noruns);
 		//satisfy the lambda's arguments
-		noruns[0][0] = '\0';
 		for (i = 0; scopes[s].f[0].ins[i][0]; i++)
 			satisfy(program, scopes + s, scopes[s].f[0].ins[i], noruns);
 		//return value;
