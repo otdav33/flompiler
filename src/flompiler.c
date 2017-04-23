@@ -437,6 +437,8 @@ declfunc(char *r, struct scope *scopes, int s)
 	char *tempname = malloc(WORDLEN); //to store pipe names
 	if (ismain)
 		strcpy(r, "\nint "); //main always returns an int.
+	else if (!scopes[s].f[0].outs[0][0]) //no outputs
+		strcat(r, "\nvoid ");
 	else {
 		strcpy(r, "\n");
 		//put in type. typefrompipe will do the magic for us for the most part.

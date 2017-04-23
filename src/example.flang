@@ -21,6 +21,7 @@ plh 'c c
 c Put cp
 cp Getchar gc
 gc Put2
+Nothing
 
 putin ;Put putout
 'c c
@@ -32,3 +33,5 @@ in ;Put2 out
 in Put once
 once < hold
 hold Put out
+
+;Nothing
