@@ -7,23 +7,24 @@ output = "" #final thing to print out
 
 class Line():
     #line of flang code
+    inputs = []
+    function = ""
+    outputs = []
     def __init__(self, line):
-        words = line.split()
+        words = line.split(" ")
         #start processing inputs, move to function, then outputs
         phase = "inputs"
         for w in words:
             if phase == "inputs":
-                if w[0] >= "a" or w[0] <= "z": #if lowercase
-                    self.inputs += w + " "
+                if w[0] >= "a" and w[0] <= "z": #if lowercase
+                    self.inputs += [w]
                 else:
-                    self.inputs = self.inputs[:-1] #take out last space
                     phase = "function"
-            elif phase == "function":
+            if phase == "function":
                 self.function = w
                 phase = "outputs"
             elif phase == "outputs":
-                self.outputs += w + " "
-        self.outputs = self.outputs[:-1]
+                self.outputs += [w]
 
 def parse(string):
     retval = []
@@ -34,8 +35,14 @@ def parse(string):
             output += l
         else:
             current = Line(l)
+            if current.function == "":
+                sys.stderr.write("Every line must have a function.\n")
+                exit(0)
             if current.function[0] != ";" and lf == 1:
-                stderr.write("Lambdas must have a ;")
-                print("here")
+                print(current.inputs)
+                print(current.function)
+                print(current.outputs)
+                sys.stderr.write("Lambdas must have a ;\n")
                 exit(0)
 
+parse(flprog)
