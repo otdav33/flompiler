@@ -7,10 +7,10 @@ output = "" #final thing to print out
 
 class Line():
     #line of flang code
-    inputs = []
-    function = ""
-    outputs = []
     def __init__(self, line):
+        self.inputs = []
+        self.function = ""
+        self.outputs = []
         words = line.split(" ")
         #start processing inputs, move to function, then outputs
         phase = "inputs"
@@ -27,22 +27,30 @@ class Line():
                 self.outputs += [w]
 
 def parse(string):
+    global output
     retval = []
     lines = string.split("\n")
     lf = 1 #line number starting over for each function
     for l in lines:
-        if l[0] == "@":
+        if l == "":
+            continue
+        if l[0] == "#":
             output += l
         else:
             current = Line(l)
             if current.function == "":
                 sys.stderr.write("Every line must have a function.\n")
                 exit(0)
-            if current.function[0] != ";" and lf == 1:
-                print(current.inputs)
-                print(current.function)
-                print(current.outputs)
-                sys.stderr.write("Lambdas must have a ;\n")
+            if current.function[0] == ";":
+                lf = 1
+                retval += [[]]
+            elif lf == 1:
+                sys.stderr.write("Programs must begin with lambdas.\n")
                 exit(0)
+            retval[-1] += [current]
+            lf += 1
+    return retval
 
-parse(flprog)
+scopes = parse(flprog)
+
+print(scopes)
