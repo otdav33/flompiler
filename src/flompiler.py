@@ -89,10 +89,13 @@ def runline(line, scope):
                     retval += ";\n"
                 break
         else:
-            retval += line.function + "("
             args = ""
-            for o in line.outputs:
-                args += "&" + o + ", "
+            if len(line.outputs) < 2:
+                retval += line.outputs[0] + " = " + line.function + "("
+            else:
+                retval += line.function + "("
+                for o in line.outputs:
+                    args += "&" + o + ", "
             for i in line.inputs:
                 args += i + ", "
             args = args[:-2]
